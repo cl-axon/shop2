@@ -1,0 +1,36 @@
+This is a list of revisions since the SHOP2 1.0 release.
+
+New in version 1.2:
+ + A Graphical User Interface has been created; it is described
+   briefly in Section 8 of the manual.
+
+ + There is a new keyword argument to the SHOP2 planner.  The argument
+   is :explanation and it causes operators in the plan returned by SHOP2 to
+   contain a logical explanation showing how their preconditions were
+   met.  It is also documented in the manual (Section 5.1).
+
+ + There are several new hook routines that are available for use in
+   SHOP2; see Section 5.4 of the manual for details.
+
+ + The Java Interface for SHOP2 has been extensively revised.  See the
+   documentation in ji4shop2/doc for more details.
+
+ + There have been some very minor bug fixes and enhancements.
+
+New in version 1.1:
+ + A Java interface for SHOP2 has been created.  It is in the ji4shop2
+   directory and is documented briefly in the user's manual.
+
+ + There is a new keyword argument to the SHOP2 planner.  The argument
+   is :plan-tree; it causes SHOP2 to return the entire task
+   decomposition tree rather than just leaves of the tree (i.e., the
+   plan).  It is also documented in the manual.
+
+ + The SHOP2 1.1 release includes a new example domain from the
+   International Planning Competitions in the IPC-2000 directory.  In
+   addition, several domains from the IPC-2002 competition are being
+   released as a seperate download at the same time as the SHOP2 1.1
+   release.  The IPC-2002 competition domains are available at:
+    http://www.cs.umd.edu/projects/shop/download.html
+
+ + There have been some assorted bug fixes.

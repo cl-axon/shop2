@@ -1,0 +1,2 @@
+#!/usr/bin/csh
+java umd/cs/shop2sample/Shop2Sample

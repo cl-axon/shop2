@@ -1,0 +1,2 @@
+#!/usr/bin/csh
+j2 sample/d1 sample/p1
