@@ -1,5 +1,6 @@
-(defparameter *version* "SHOP2 version 1.2 (September 19, 2003)
+(defparameter *version* "SHOP2 version 1.3 alpha with SIFT mods (December 29, 2004)
 Copyright (C) 2002  University of Maryland.
+Robert Goldman's modifications Copyright (C) 2004 SIFT, LLC.
 This software is distributed on an \"AS IS\" basis, WITHOUT WARRANTY OF ANY
 KIND, either express or implied.  This software is distributed under an
 MPL/GPL/LGPL triple license.  For details, see the software source file.")
@@ -21,15 +22,21 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
 ;;; The Initial Developer of the Original Code is the University of
 ;;; Maryland. Portions created by the Initial Developer are Copyright (C)
 ;;; 2002,2003 the Initial Developer. All Rights Reserved.
+;;;
+;;; Additions and modifications made by Robert P. Goldman.  Portions
+;;; created by Dr. Goldman are Copyright (C) 2004 SIFT, LLC.  These
+;;; additions and modifications are also available under the
+;;; MPL/GPL/LGPL licensing terms.
 ;;; 
 ;;; Contributor(s):
-;;;    Dana S. Nau
-;;;    Yue Cao
-;;;    Tsz-Au Chiu
-;;;    Okhtay Ilghami
-;;;    Ugur Kuter
-;;;    Steve Mitchell
-;;;    J. William Murdock
+;;;    Dana S. Nau (UMD)
+;;;    Yue Cao (???)
+;;;    Tsz-Au Chiu (UMD)
+;;;    Okhtay Ilghami (UMD)
+;;;    Ugur Kuter (UMD)
+;;;    Steve Mitchell (???)
+;;;    J. William Murdock (IBM Research)
+;;;    Robert P. Goldman (SIFT, LLC)
 ;;; 
 ;;; Alternatively, the contents of this file may be used under the terms of
 ;;; either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -46,6 +53,62 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
 
 ;;; -----------------------------------------------------------------------
 ;;; REVISION LOG
+
+; ****************** Revisions since SHOP2 1.2 Release
+
+;;   [2004/12/30:rpg] An enormous modification for check-in to
+;;   sourceforge.  This set of changes contains modifications to
+;;   improve the return of plan trees from SHOP2; the introduction of
+;;   LIST type DEFSTRUCTS (STATE, OPERATOR, and OPERATOR-NODE) to
+;;   provide named accessors to data structures (makes a little easier
+;;   to understand for now, could be an intermediate step towards more
+;;   efficient implementation using true DEFSTRUCTs later); added
+;;   problem-state and problem-tasks "accessor" functions to make
+;;   PROBLEM implementation more abstract; added an ASSIGN*
+;;   pseudo-logical operator that provides a multiple-binding
+;;   equivalent to ASSIGN; modified the SHOP-TRACE mechanism (see
+;;   change to SHOP-TRACE argument pattern); added a (rudimentary)
+;;   manually-directed planning option; fixed a problem with
+;;   retrieving preconditions with already-bound variables; made it
+;;   possible to extract a state-trajectory, as well as an operator
+;;   sequence and plan tree from FIND-PLANS; also folded in mods from
+;;   unreleased UMD 1.3 beta version.
+
+;;   2004.04.05 (rpg) Made functions that encapsulated the choice of
+;;   next task to plan for, so that they could be replaced or wrapped
+;;   to customize the behavior of SHOP2.  See TASK-ITERATOR and
+;;   CHOOSE-IMMEDIATE-TASK.
+;;   Changed the binding of *CURRENT-STATE* to happen earlier, in
+;;   SEEK-PLANS, instead of later (in FIND-SATISFIERS).
+
+;;   2004.02.07 (uk) Fixed the variable binding problem in function
+;;   MAKE-PROBLEM, that was reported by Robert Goldman as a bug in
+;;   DEFPROBLEM macro. The function MAKE-PROBLEM is helpful for backward-
+;;   compatability with SHOP -- the earlier version of SHOP2.
+
+;;   2004.02.06 (rpg) Fixed problems in variable-binding interacting
+;;   with returning trees.  Added new TREE-STORE object argument to the
+;;   SEEK-PLANS-<foo> functions.  Also added code to FIND-PLANS to
+;;   recover those trees.  This is only an interim modification: the
+;;   original functionaly (although buggy) has not been removed yet.
+
+;;   2003.11.17 (jwm) Provisional modification to the way protections
+;;   are handled: protections can now be arbitrary logical expressions
+;;   (including references to axioms).  Since this capability creates
+;;   the possibility that an addition to a state could violate a
+;;   protection, an additional change was required so that protections
+;;   are now checked after deletes AND adds (before they were checked
+;;   after deletes but before adds).  This has the side-effect that an
+;;   operator that deletes and then adds back a protected atom does
+;;   not constitute a protection violation (it's not clear that the
+;;   former behavior was desirable anyway).
+
+;;   2003.11.04 (rpg) Moved SHOP-TRACE comments into the function as a document
+;;   string.
+
+;;   2003.11.03 (rpg) Added an ASSIGN* intended to make it possible to have a
+;;   lisp function compute multiple possible bindings for a variable.
+
 
 ; ****************** Revisions since the SHOP2 1.1 Release
 
@@ -517,6 +580,23 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
 (defparameter *current-plan* nil)  ; current plan
 (defparameter *current-tasks* nil) ; current task
 
+(defvar *unifiers-found* nil)	;associated with *PLANS-FOUND*
+(defvar *states-found* nil)		;associated with *PLANS-FOUND* [2004/09/14:rpg]
+
+;;(defvar *traced-operators* nil)		;break when attempting to apply one of these.
+(defvar *traced-methods* nil)		;break when attempting to apply one of these.
+(defvar *traced-tasks* nil)		;break when attempting to expand one of these.
+
+(defvar *hand-steer* nil
+  "This variable will be DYNAMICALLY bound and used to indicate whether the user
+wishes to choose tasks for planning by hand.")
+(defvar *leashed* nil
+  "This variable will be DYNAMICALLY bound and it will further constrain the behavior
+of SHOP2 when we hand-steer it (see *hand-steer*).  If *leashed* is NIL, SHOP2 will
+simply proceed when choosing tasks, if there is no choice, i.e., when there's only 
+one task on the open list, or only one :immediate task.  If *leashed* is non-nil, 
+will consult the user even in these cases.")
+
 ;;; It is relatively common practice in Lispworks to use ! as a macro
 ;;;  for :redo.  This will really mess up interpretation of operators in
 ;;;  SHOP, since all operators start with "!".  Thus, we will turn off
@@ -533,44 +613,115 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
 
 ; (defun trace-query-hook (&rest args) (query-java args))
 
+(defvar *shop-trace-stream* t
+  "By resetting or binding this special variable, you can
+redirect the shop trace output.  Handy for making dribble
+files.")
+
 (defmacro trace-print (type item &rest formats)
   `(when *shop-trace*
      (when (or (member ,type *shop-trace*) (member ',item *shop-trace*))
        (when *trace-query*
 	 (funcall (fdefinition 'trace-query-hook) ,type ,item (list ,@formats)
 		  (state-atoms state)))
-       (format t ,.formats)
+       (format *shop-trace-stream* ,.formats)
        (when (member :states *shop-trace*)
-	 (format t "~%     state ~s" (state-atoms state))))))
+	 (format *shop-trace-stream* "~%     state ~s" (state-atoms state))))))
 
-;;; (SHOP-TRACE) will print a list of what's currently being traced
-;;;
-;;; (SHOP-TRACE 'ITEM) will turn on tracing for ITEM, which may be
-;;;   any of the following:
-;;;    - the name of a method, axiom, operator, task, or predicate;
-;;;    - one of the keywords :METHODS, :AXIOMS, :OPERATORS, :TASKS,
-;;;      :GOALS, :EFFECTS, or :PROTECTIONS, in which case SHOP will
-;;;      trace all items of that type (:GOALS, :EFFECTS, and :PROTECTIONS
-;;;      refer to three different ways predicates can occur: as goals to
-;;;      be satisfied, and as effects or protections in operators);
-;;;    - the keyword :STATES, in which case SHOP will include the current
-;;;      state whenever it prints out a tracing message
-;;;
-;;; (SHOP-TRACE '(ITEM1 ITEM2 ...)) will do the same for a list of items
-(defun shop-trace (&optional items)
-  (cond ((null items) *shop-trace*)
-        ((atom items) (pushnew items *shop-trace*))
-        (t (dolist (item items)
-             (pushnew item *shop-trace*)))))
+(defconstant SHOP-TRACE-ITEMS
+  (list :methods :axioms :operators :tasks :goals :effects :protections
+	:states)
+  "Acceptable arguments for SHOP-TRACE (and SHOP-UNTRACE).")
+
+(defmacro shop-trace (&rest items)
+  "(SHOP-TRACE) will return a list of what's currently being traced
+
+ (SHOP-TRACE ITEM) will turn on tracing for ITEM, which may be
+   any of the following:
+    - the name of a method, axiom, operator, task, or predicate;
+    - one of the keywords :METHODS, :AXIOMS, :OPERATORS, :TASKS,
+      :GOALS, :EFFECTS, or :PROTECTIONS, in which case SHOP will
+      trace all items of that type (:GOALS, :EFFECTS, and :PROTECTIONS
+      refer to three different ways predicates can occur: as goals to
+      be satisfied, and as effects or protections in operators);
+    - a pair of the form (:TASK <taskname>), (:METHOD <methodname>).  SHOP will
+      break when attempting to expand the task, or apply the method, respectively.
+    - the keyword :STATES, in which case SHOP will include the current
+      state whenever it prints out a tracing message
+    - the keyword :ALL in which case SHOP will print out all the tracing
+      information it knows how to.
+
+ (SHOP-TRACE ITEM1 ITEM2 ...) will do the same for a list of items"
+  (let* ((items `,items)
+	 (new-items
+	  (if (null items) nil items)
+	  ))
+    (when (member :all new-items)
+      (setf new-items (delete :all new-items))
+      (setf new-items (union SHOP-TRACE-ITEMS new-items)))
+	
+    `(shop-trace-1 ',new-items)))
+
+(defun shop-trace-1 (items)
+  ;; make sure the argument is coerced to a list
+  (unless (null items) 
+    (dolist (item items)
+      (cond ((member item SHOP-TRACE-ITEMS)
+	     (pushnew item *shop-trace*))
+	    ((listp item)
+	     (case (car item)
+	       (:task (shop-trace-task (second item)))
+	       (:method (shop-trace-method (second item)))
+	       (:axiom (shop-trace-axiom (second item)))
+	       (otherwise 
+		(warn "Ignoring invalid shop-trace argument ~S" item))))
+	    (t
+	     (warn "Ignoring invalid shop-trace argument ~S" item)))))
+  (shop-trace-info))
+
+(defun shop-trace-method (meth-name)
+  (pushnew meth-name *traced-methods*))
+
+;;;(defun shop-trace-op (opname)
+;;;  (pushnew opname *traced-operators*))
+
+(defun shop-trace-task (taskname)
+  (pushnew taskname *traced-tasks*))
+
+(defun shop-trace-info ()
+  "Information about the traced aspects of shop2."
+  (append
+   *shop-trace*
+   (loop for taskname in *traced-tasks*
+       collect `(:task ,taskname))
+   (loop for methname in *traced-methods*
+       collect `(:method ,methname))))
+
+(defmacro shop-untrace (&rest items)
+  (if (null items)
+      '(shop-untrace-all)
+    `(shop-untrace-1 ',items)))
+  
+(defun shop-untrace-all ()
+  (setf *shop-trace* nil
+	*traced-tasks* nil
+	;;*traced-operators* nil
+	*traced-methods* nil))
 
 ;;; (SHOP-UNTRACE ...) is the inverse of (SHOP-TRACE ...)
-(defun shop-untrace (&optional items)
+(defun shop-untrace-1 (items)
   ;; it's OK to use destructive deletion here
-  (cond ((null items) (setq *shop-trace* nil))
-        ((atom items)
-         (setq *shop-trace* (delete items *shop-trace*)))
-        (t (dolist (item items)
-             (setq *shop-trace* (delete item *shop-trace*))))))
+  (dolist (item items)
+    (cond ((symbolp item)
+	   (setq *shop-trace* (delete item *shop-trace*)))
+	  ((eq (car item) :task)
+	   (setf *traced-tasks* (delete (second item) *traced-tasks*)))
+	  ((eq (car item) :method)
+	   (setf *traced-methods* (delete (second item) *traced-methods*)))
+	  (t
+	   (warn "don't know how to delete ~S from shop-trace items: ignoring." item)))))
+	
+	      
 
 ;;; VARIABLEP returns T if X is a symbol whose name begins with "?"
 ; The code below is faster than checking for the ? each time, but
@@ -583,22 +734,26 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
 ;;; PRIMITIVEP returns T if X is a symbol whose name begins with "!"
 (defmacro primitivep (x) `(and (symbolp ,x) (get ,x 'primitive)))
 
+(defun groundp (literal)
+  "Is LITERAL a ground literal?  Traverse the tree looking for a 
+variable."
+  (if (atom literal)
+      (not (variablep literal))
+    (every #'groundp literal)))
+
 (defmacro call (fn &rest params)
   `(funcall (function ,fn) ,.params))
+
+;;;---------------------------------------------------------------------------
+;;; Changed defproblem to simply add quotes and call MAKE-PROBLEM.
+;;; This can help us avoid the danger of having defproblem and
+;;; make-problem diverge. [2004/02/17:rpg]
+;;;---------------------------------------------------------------------------
 
 (defmacro defproblem (problem-name state tasks &optional extra)
   ;; if extra is given, then the args are problem-name, domain-name, state,
   ;; and tasks respectively. in that case, we want to ignore domain-name
-  (when extra
-    (setq state tasks)
-    (setq tasks extra)) 
-  `(progn
-     (format t "~%Defining problem ~s ..." ',problem-name)
-     (setf *all-problems* (cons ',problem-name *all-problems*))
-     (setf (get ',problem-name :state) ',state)
-     (setf (get ',problem-name :tasks) ',(process-task-list tasks))
-     (set-variable-property ',tasks) ; Bug fix by Robert P. Goldman
-     ',problem-name))
+  `(make-problem ',problem-name ',state ',tasks ',extra))
 
 (defmacro def-problem-set (list-name problem-list)
   `(progn
@@ -1087,12 +1242,12 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
     ;(format t "~%sat: ~s~%" satisfiers) ;***
 
     (if (eq (first goals) :sort-by)
-      (sort satisfiers 
-            (if (= (length goals) 3) #'<
-              (eval (third goals)))
-            :key #'(lambda (sat)
-                 (eval (apply-substitution (second goals) sat))))
-      satisfiers)))
+	(sort satisfiers 
+	      (if (= (length goals) 3) #'<
+		  (eval (third goals)))
+	      :key #'(lambda (sat)
+		       (eval (apply-substitution (second goals) sat))))
+	satisfiers)))
 
 ;;; REAL-SEEK-SATISFIERS is the workhorse for FIND-SATISFIERS.  For each
 ;;; proof of GOALS from AXIOMS, it returns the values of GOAL's variables
@@ -1125,12 +1280,50 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
           (seek-satisfiers remaining state bindings newlevel just1)
           (return-from real-seek-satisfiers nil)))
 
+      ;; we may want to have a function that can return a LIST of
+      ;; possible values for a variable. [2003/11/03:rpg]
+      (assign*
+       ;; it's possible that the VAR part of (ASSIGN VAR ANS) will already
+       ;; be bound by the time the ASSIGN form is examined.  We need to
+       ;; check for this important special case. [2003/06/20:rpg]
+       (let ((var (cadr goal1))
+	     (answers (eval (caddr goal1))))
+		(loop for ans in answers
+		      with resulting-answers = nil
+		      with new-answers
+		      if (or (variablep var)
+			     ;; trivial unification --- probably wrong, should be true unification
+			     (equalp var ans))
+			do (setf new-answers (seek-satisfiers
+					      (apply-substitution remaining (list (cons var ans)))
+						  state
+						  (apply-substitution bindings (list (cons var ans)))
+						  newlevel just1))
+		      when new-answers
+			if just1
+			  do (return-from real-seek-satisfiers new-answers)
+		      else do (setf resulting-answers
+				 (my-union new-answers resulting-answers :test #'equal))
+		      finally (return resulting-answers))))
       (assign
-        (let ((ans (eval (caddr goal1))))
-          (seek-satisfiers 
-            (apply-substitution remaining (list (cons (cadr goal1) ans)))
-            state (apply-substitution bindings (list (cons (cadr goal1) ans)))
-            newlevel just1)))
+       ;; it's possible that the VAR part of (ASSIGN VAR ANS) will already
+       ;; be bound by the time the ASSIGN form is examined.  We need to
+       ;; check for this important special case. [2003/06/20:rpg]
+       (let ((var (second goal1))
+	     (ans (eval (third goal1))))
+	 (cond ((variablep var)
+		(seek-satisfiers 
+		 (apply-substitution remaining (list (cons var ans)))
+		 state (apply-substitution bindings (list (cons var ans)))
+		 newlevel just1))
+	       ;; trivial unification --- probably wrong --- should be true unification
+	       ((equalp var ans)
+		(seek-satisfiers 
+		 (apply-substitution remaining nil)
+		 state (apply-substitution bindings nil)
+		 newlevel just1))
+	       ;; otherwise, a constant value for VAR didn't match ANS
+	       (t (return-from real-seek-satisfiers nil)))))
 
       (imply
         (let ((conditionA (second goal1)) (conditionB (third goal1)))
@@ -1396,7 +1589,7 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
 ;  (format t "~%potential query: ~s" query)
   (cond
    ((null query) nil)
-   ((member (first query) '(not eval call assign imply forall sort-by))
+   ((member (first query) '(not eval call assign assign* imply forall sort-by))
     nil)
    ((listp (first query)) ; implicit and
     (external-query (cons 'and query) state))
@@ -1424,7 +1617,7 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
     (invoke-external-query (list 'and query) state))))
 
 (defun logical-keywordp (sym)
-  (member sym '(and or not eval call assign imply forall sort-by)))
+  (member sym '(and or not eval call assign assign* imply forall sort-by)))
 
 ; Takes two lists of sets of bindings and returns a list of sets of
 ;  bindings consisting of all consistent combinations of one set from
@@ -1557,6 +1750,15 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
    (list (list 0))
    (make-statebody atoms)
    *state-encoding*))
+
+;;; A crutch for me (and, perhaps, others) [2004/09/14:rpg]
+(defstruct (state (:type list) (:constructor make-state-skel)
+		  (:copier nil))
+  "This (redundant) definition provides state accessors that may be 
+easier to remember than list positions."
+  tags-info
+  statebody
+  encoding)
 
 (defun state-all-atoms-for-predicate (state pred)
   (statebody-atoms-for-predicate (second state) pred))
@@ -2033,118 +2235,169 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
 ;;; modified to use the new SHOP2 operator syntax, which includes preconditions (swm)
 ;;; ------------------------------------------------------------------------
 
+(defstruct (operator (:type list))
+  "This structure definition was added in order to make the 
+access to operator attributes self-documenting.  Later, the list
+structure could be removed, and a true struct could be used instead."
+  (ignore :operator :type symbol)				; this will be the symbol :operator
+  (head nil :type list)
+  preconditions
+  deletions
+  additions
+  (cost-fun nil))
+
 ;;; If OPERATOR is applicable to TASK in STATE, then APPLY-OPERATOR returns
 ;;; the resulting state.  Otherwise it returns FAIL.
-(defun apply-operator (state task-body operator protections depth)
+(defun apply-operator (state task-body operator protections depth
+			     in-unifier
+			     )
   (let* ((standardized-operator (standardize operator))
-         (head (second standardized-operator))
-         (preconditions (third standardized-operator))
-         (deletions (fourth standardized-operator))
-         (additions (fifth standardized-operator))
+         (head (operator-head standardized-operator))
+         (preconditions (operator-preconditions standardized-operator))
+         (deletions (operator-deletions standardized-operator))
+         (additions (operator-additions standardized-operator))
          operator-unifier pre protections1 tempdel tempadd statetag
          head-subbed dels-subbed adds-subbed pu unifier
          cost-value cost-number)
 
-    (setq operator-unifier (unify head task-body))
+    ;; added rudimentary arity-checking...
+    (unless (= (length task-body) (length head))
+      (cerror "Continue (operator application will fail)"
+	      "Arity of operator in the plan library, ~D~%~T~S~%does not match task, ~D~%~T~S"
+	      (length head)
+	      head
+	      (length task-body)
+	      task-body))
+
+    ;; new tracing facility for debugging
+    (when *traced-tasks*
+      (when (member (first head) *traced-tasks*)
+	(break "Applying operator for ~A~%~S" (first head) task-body)))
+
+    (setq operator-unifier (unify head (apply-substitution task-body in-unifier)))
+    
     (cond
-      ((eql operator-unifier 'fail) (values 'fail protections 0))
-      (t 
-        (progn
-          ;; first check the preconditions, if any
-          (when preconditions
-            (setq pre (apply-substitution preconditions operator-unifier))
-            (setq pu (find-satisfiers pre state t))
-            (unless pu
-              (trace-print :operators (first head)
-                           "~2%Depth ~s, inapplicable operator ~s~%     task ~s"
-                           depth
-                           (first head)
-                           task-body)
-              (return-from apply-operator (values 'fail preconditions 0))))
-          (setq unifier (compose-substitutions operator-unifier (car pu)))
-          (setq dels-subbed (apply-substitution deletions unifier))
-          (setq adds-subbed (apply-substitution additions unifier))
-          (setq head-subbed (apply-substitution head unifier))
+     ((eql operator-unifier 'fail) (values 'fail protections 0))
+     (t
+      (setf operator-unifier
+	    (compose-substitutions operator-unifier in-unifier))
+      ;; first check the preconditions, if any
+      (when preconditions
+	(setq pre (apply-substitution preconditions operator-unifier))
+	(setq pu (find-satisfiers pre state t))
+	(unless pu
+	  (trace-print :operators (first head)
+		       "~2%Depth ~s, inapplicable operator ~s~%     task ~s.~%     Precondition failed: ~s.~%"
+		       depth
+		       (first head)
+		       (apply-substitution task-body unifier)
+		       pre
+		       )
+	  (return-from apply-operator (values 'fail preconditions 0))))
+      (setq unifier (compose-substitutions operator-unifier (car pu)))
+      (setq dels-subbed (apply-substitution deletions unifier))
+      (setq adds-subbed (apply-substitution additions unifier))
+      (setq head-subbed (apply-substitution head unifier))
+      ;; added this to update the tree [2003/06/25:rpg]
+      ;(setq *current-tree* (apply-substitution *current-tree* unifier))
+					;(format t "~%Sat to explain: ~s" (apply-substitution preconditions unifier))
 
-;(format t "~%Sat to explain: ~s" (apply-substitution preconditions unifier))
-
-	  (if *explanation*
-	      (setq head-subbed `(,@(cons (first head-subbed)
+      ;; at this point UNIFIER is bound to the results of unifying
+      ;; TASK-BODY with the operator's head and then retrieving
+      ;; the first set of bindings that satisfy the preconditions.
+      ;; we will return this unifier later on, assuming that
+      ;; bindings from add and delete lists should not be plugged
+      ;; in. [2004/01/20:rpg]
+      (when *explanation*
+	  (setq head-subbed `(,@(cons (first head-subbed)
 				      (mapcar #'list
 					      (rest (second operator))
 					      (rest head-subbed)))
-				  :explanation
-				  ,(explain-satisfier
-				   (apply-substitution preconditions unifier)
-				   state))))
+				:explanation
+				,(explain-satisfier
+				  (apply-substitution preconditions unifier)
+				  state))))
+      (trace-print :operators (first head)
+		   "~2%Depth ~s, applying operator ~s~%      task ~s~%       del ~s~%       add ~s"
+		   depth
+		   (first head)
+		   (apply-substitution task-body unifier)
+		   dels-subbed
+		   adds-subbed)
+      (setq cost-value
+	(eval (apply-substitution
+	       (operator-cost-fun standardized-operator) unifier)))
+      (setq cost-number (if (numberp cost-value) cost-value 1))
+      ;; process DELETE list
+      (dolist (d dels-subbed)
+	(unless (eql 'fail d)
+	  (if (eql (car d) 'forall)
+	      (let ((bounds (third d)) (dels (fourth d)) mgu2 tempd)
+		(setq mgu2 (find-satisfiers bounds state))
+		(dolist (m2 mgu2)
+		  (setq tempd (apply-substitution dels m2))
+		  (dolist (d1 tempd)
+		    (setq tempdel
+		      (my-union (list d1) tempdel :test #'equal)))))
+	    (setq tempdel (my-union (list d) tempdel :test #'equal)))))
+      ;; process ADD list
+      (dolist (a adds-subbed)
+	(unless (eql 'fail a)
+	  (if (eql (car a) 'forall)
+	      (let ((bounds (third a)) (adds (fourth a)) mgu2 tempa)
+		(setq mgu2 (find-satisfiers bounds state))
+		(dolist (m2 mgu2)
+		  (setq tempa (apply-substitution adds m2))
+		  (dolist (a1 tempa)
+		    (setq tempadd
+		      (my-union (list a1) tempadd :test #'equal)))))
+	    (setq tempadd (my-union (list a) tempadd :test #'equal)))))
 
-          (trace-print :operators (first head)
-                       "~2%Depth ~s, applying operator ~s~%      task ~s~%       del ~s~%       add ~s"
-                       depth
-                       (first head)
-                       task-body
-                       dels-subbed
-                       adds-subbed)
-          (setq cost-value
-                (eval (apply-substitution
-                       (sixth standardized-operator) unifier)))
-          (setq cost-number (if (numberp cost-value) cost-value 1))
-          ;; process DELETE list
-          (dolist (d dels-subbed)
-            (unless (eql 'fail d)
-              (if (eql (car d) 'forall)
-                (let ((bounds (third d)) (dels (fourth d)) mgu2 tempd)
-                  (setq mgu2 (find-satisfiers bounds state))
-                  (dolist (m2 mgu2)
-                    (setq tempd (apply-substitution dels m2))
-                    (dolist (d1 tempd)
-                      (setq tempdel
-                            (my-union (list d1) tempdel :test #'equal)))))
-                (setq tempdel (my-union (list d) tempdel :test #'equal)))))
-          ;; process ADD list
-          (dolist (a adds-subbed)
-            (unless (eql 'fail a)
-              (if (eql (car a) 'forall)
-                (let ((bounds (third a)) (adds (fourth a)) mgu2 tempa)
-                  (setq mgu2 (find-satisfiers bounds state))
-                  (dolist (m2 mgu2)
-                    (setq tempa (apply-substitution adds m2))
-                    (dolist (a1 tempa)
-                      (setq tempadd
-                            (my-union (list a1) tempadd :test #'equal)))))
-                (setq tempadd (my-union (list a) tempadd :test #'equal)))))
+      (setq protections1 protections)               
+      (setq statetag (tag-state state))
+      ;; process PROTECTIONS generated by this operator
+      (dolist (d tempdel)
+	(if (eql (car d) :protection)
+	    (setq protections1 
+	      (delete-protection 
+	       protections1 (second d) depth (first head) state))
+	  (delete-atom-from-state d state depth (first head))))
 
-          (setq protections1 protections)               
-          (setq statetag (tag-state state))
-          ;; process PROTECTIONS generated by this operator
-          (dolist (d tempdel)
-            (if (eql (car d) :protection)
-                (setq protections1 
-                      (delete-protection 
-                        protections1 (second d) depth (first head) state))
-              (delete-atom-from-state d state depth (first head))))
-          (if (protection-ok state protections1 head) 
-              (setq protections protections1)
-            (progn
-              (retract-state-changes state statetag)
-              (return-from apply-operator (values 'fail 'fail protections 0))))
+      (dolist (a tempadd)
+	(unless (eql (car a) :protection)
+	  ;; added this error-checking.  I can't think of a case where
+	  ;; it's ok to add a non-ground literal to the
+	  ;; state. [2004/02/17:rpg]
+	  (unless (groundp a)
+		 (error "Attempting to add non-ground literal ~S to state."
+			a))
+	  (add-atom-to-state a state depth (first head))))
 
-          (dolist (a tempadd)
-            (if (eql (car a) :protection)
-                (setq protections (add-protection protections (second a) depth (first head) state))
-              (add-atom-to-state a state depth (first head))))
-          (return-from apply-operator 
-                       (values head-subbed statetag 
-                               protections cost-number)))))))
+      (if (protection-ok state protections1 head) 
+	  (setq protections protections1)
+	(progn
+	  (retract-state-changes state statetag)
+	  (return-from apply-operator (values 'fail 'fail protections 0))))
+
+      (dolist (a tempadd)
+	(when (eql (car a) :protection)
+	  (setq protections 
+	    (add-protection protections (second a) 
+			    depth (first head) state))))
+
+      (values head-subbed statetag 
+	      protections cost-number
+	      unifier)))))
 
 ;;; if the state has everything that the protections list has, then 
 ;;; return true, else return nil
 (defun protection-ok (state protections head)
   (dolist (p protections)
-    (unless (atom-in-state-p (car p) state)
-      (trace-print :operators (first head)
-                   "~%Backtracking because operator ~s deleted the protected atom ~s"
-                   (first head) (car p))
+    (unless (find-satisfiers (car p) state t)
+      (trace-print
+       :operators (first head)
+       "~%Backtracking because operator ~s~%  violated the protected condition ~s"
+       (first head) (car p))
       (return-from protection-ok nil)))
   t)
 
@@ -2190,14 +2443,26 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
 
 ;;; If METHOD is applicable to TASK in STATE, then APPLY-METHOD returns the
 ;;; resulting list of reductions.  Otherwise it returns NIL.
-(defun apply-method (state task-body method protections depth)
+(defun apply-method (state task-body method protections depth
+			   in-unifier)
   (declare (ignore protections))  ; do we really want to ignore protections?
   (let ((standardized-method (standardize method))  
         task-unifier state-unifiers pre tail)
 
+    (unless (= (length (second standardized-method))
+	       (length task-body))
+      (error "Arity mismatch between task to plan and method."))
+
     ;; see if the standardized-method's head unifies with TASK-BODY
-    (setq task-unifier (unify (second standardized-method) task-body))
+    (setq task-unifier (unify (second standardized-method)
+			      (apply-substitution task-body in-unifier)))
+    (when *traced-tasks*
+      (when (member (first task-body) *traced-tasks*)
+	(break "Attempting to apply a method for ~A:~%~S"
+	       (first task-body) task-body)))
+
     (unless (eql task-unifier 'fail)
+      (setq task-unifier (compose-substitutions in-unifier task-unifier))
       ;; STANDARDIZED-METHOD's CDDR is a list 
       ;; (label_1 pre_1 d_1 label_2 pre_2 d_2 ...) which acts like an
       ;; if-then-else: we look for the first true pre_i, and then evaluate d_i
@@ -2207,6 +2472,17 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
         ;; apply v to PRE and TAIL
         (setq pre (apply-substitution (second body) task-unifier))
         (setq tail (apply-substitution (third body) task-unifier))
+
+	;; check for tracing
+	(when *traced-methods*
+	  (when (member (first body) *traced-methods*)
+	    (break "Attempting to apply method ~A" (first body))))
+
+	(trace-print :methods (first body)
+                           "~2%Depth ~s, trying method ~s~%      for task ~s~%"
+                           depth
+                           (first body)
+                           task-body)
         
         ;; find all matches to the current state
         (setq state-unifiers (find-satisfiers pre state))
@@ -2215,22 +2491,31 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
             (let* ((answers-with-duplicates
                     (mapcan
                      #'(lambda (unifier)
-                        (mapcar
-                         #'(lambda (reduction)
-                            (cons (first body) reduction))
-                         (force-immediate-reduction 
-                          (eval (apply-substitution tail unifier)))))
+			 (let ((unifier (compose-substitutions (copy-tree unifier) task-unifier)))
+			   (mapcar
+			    #'(lambda (reduction)
+				(cons 
+				 (cons (first body) reduction)
+				 ;;keep the unifier around a bit longer...
+				 ;; [2003/06/25:rpg]
+				 unifier))
+			    (force-immediate-reduction 
+			     (eval (apply-substitution tail unifier))))))
                      state-unifiers))
-                   (answers
-                    (remove-duplicates answers-with-duplicates
-                     :test #'equal :from-end t)))
+ 		   (answers-and-unifiers
+ 		    (remove-duplicates answers-with-duplicates
+ 				       ;; added this to ignore the unifiers....
+ 				       :key #'car
+ 				       :test #'equal :from-end t))
+ 		   (answers (mapcar #'car answers-and-unifiers))
+ 		   (unifiers (mapcar #'cdr answers-and-unifiers)))
               (trace-print :methods (first body)
                            "~2%Depth ~s, applicable method ~s~%      task ~s~%reductions ~s"
                            depth
                            (first body)
                            task-body
                            answers)
-              (return-from apply-method answers))
+              (return-from apply-method (values answers unifiers)))
           (trace-print :methods (first body)
                      "~2%Depth ~s, inapplicable method ~s~%      task ~s"
                      depth
@@ -2388,7 +2673,11 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
 ;;; MAKE-PROBLEM creates a planning problem named PROBLEM-NAME
 ;;; by putting STATE and TASK onto PROBLEM-NAME's
 ;;; property list under the indicators :STATE and :TASKS.
+#+allegro (excl::define-simple-parser make-problem second)
+
 (defun make-problem (problem-name state tasks &optional extra)
+  #+allegro
+  (excl:record-source-file problem-name :type :shop2-problem)
   ;; if extra is given, then the args are problem-name, domain-name, state, tasks
   ;; in that case, we want to ignore domain-name
   (when extra
@@ -2397,7 +2686,21 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
   (format t "~%Defining problem ~s ..." problem-name)
   (setf *all-problems* (cons problem-name *all-problems*))
   (setf (get problem-name :state) state)
-  (setf (get problem-name :tasks) (process-task-list tasks)))
+  (setf (get problem-name :tasks) (process-task-list tasks))
+  (set-variable-property tasks))
+
+;;;---------------------------------------------------------------------------
+;;; I have added these two accessors to make it easier to modify the
+;;; implementation of SHOP2 problems, should we like to do it.  I
+;;; suggest that we use these instead of (get <problem-name> :state)
+;;; and (get <problem-name> :tasks) [2004/10/27:rpg]
+;;;---------------------------------------------------------------------------
+
+(defun problem-state (problem)
+  (get problem :state))
+
+(defun problem-tasks (problem)
+  (get problem :tasks))
 
 ;;; MAKE-PROBLEM-SET gives the name SET-NAME to the problems in PROBLEM-SET.
 ;;; More specifically, it puts PROBLEM-SET onto PROBLEM-NAME's
@@ -2464,134 +2767,238 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
 ;;;                   seek-plans-nonprimitive, seek-plans-null
 
 (defun seek-plans (state tasks top-tasks partial-plan partial-plan-cost
-                         depth which-plans protections)
+		   depth which-plans protections
+		   unifier)
   (when (time-expired-p)
     (if *print-stats* (format t "~%Terminating because the time limit has expired."))
     (throw *internal-time-tag* nil))
 
   (setq *current-plan* partial-plan)
   (setq *current-tasks* tasks)
+  ;; moved this setf here, to try to get access to the state earlier.
+  (setf *current-state* state)
   (setq *expansions* (1+ *expansions*))
 
   (cond
-    ;; if no top-tasks to accomplish, then we have an answer
-    ((or (null top-tasks) (equal top-tasks '(NIL)))
-      (seek-plans-null state which-plans partial-plan partial-plan-cost depth))
+   ;; if no top-tasks to accomplish, then we have an answer
+   ((or (null top-tasks) (equal top-tasks '(NIL)))
+    (seek-plans-null state which-plans partial-plan partial-plan-cost depth
+		     unifier))
    
     ;; else if we've hit the depth bound, then fail
     ((and *depth-cutoff* (>= depth *depth-cutoff*)))
 
-    ;; else look at the agenda
-    (t
-     (let* ((immediate-tasks (get-immediate-list top-tasks))
-            task1)
-       (if immediate-tasks
-         (progn
-           (setq task1 (car immediate-tasks))
-           (seek-plans-task
-            task1 state tasks top-tasks partial-plan partial-plan-cost
-            depth which-plans protections)
-	   (and *plans-found* (eq which-plans :first) 
-		(not (optimize-continue-p))
+   ;; else look at the agenda
+   (t
+    (let ((immediate-tasks (get-immediate-list top-tasks)))
+      (if immediate-tasks
+	  (let ((task1 (choose-immediate-task immediate-tasks unifier)))
+	    ;; in temporal planning we may be unable to choose a
+	    ;; schedulable immediate task, in which case we must fail
+	    ;; and backtrack. [2004/04/05:rpg]
+	    (when task1
+	      (seek-plans-task
+	       task1 state tasks top-tasks partial-plan partial-plan-cost
+	       depth which-plans protections
+					;tree
+	       unifier))
+	    ;; rewrote this as if-then-else, to make it clearer...
+	    (when (and *plans-found* (eq which-plans :first) 
+		       (not (optimize-continue-p)))
+	      (return-from seek-plans nil))
+	    (if task1
+		(trace-print :tasks (get-task-name task1)
+			     "~2%Depth ~s, backtracking from task~%      task ~s"
+			     depth
+			     task1)
+		(trace-print :tasks (get-task-name task1)
+			     "~2%Depth ~s, unable to choose task from immediate task-list, backtracking~%"
+			     depth)))
+	;; no :IMMEDIATE tasks, so do the rest of the tasks on the agenda
+	(if *hand-steer*
+	    (let ((task1 (user-choose-task top-tasks unifier)))
+	      (seek-plans-task task1 state tasks top-tasks partial-plan
+			       partial-plan-cost depth which-plans
+			       protections 
+			       unifier)
+	      (when (and *plans-found* (eq which-plans :first) 
+			 (not (optimize-continue-p)))
 		(return-from seek-plans nil))
-           (trace-print :tasks (get-task-name task1)
-                        "~2%Depth ~s, backtracking from task~%      task ~s"
-                        depth
-                        task1))
-         ;; no :IMMEDIATE tasks, so do the rest of the tasks on the agenda
-         (progn
-           (dolist (task1 top-tasks)
-             (seek-plans-task task1 state tasks top-tasks partial-plan
-                              partial-plan-cost depth which-plans
-                              protections)
-             (and *plans-found* (eq which-plans :first) 
-		  (not (optimize-continue-p))
-                  (return-from seek-plans nil))
-             (trace-print :tasks (get-task-name task1)
-                          "~2%Depth ~s, backtracking from task ~s"
-                          depth
-                          task1))))))))
+	      (trace-print :tasks (get-task-name task1)
+			   "~2%Depth ~s, backtracking from task ~s"
+			   depth
+			   task1))
+	    (progn
+;;	      (break "about to get task-iterator for:~%~{~T~S~%~}" top-tasks)
+	      (let ((task-iterator (task-iterator top-tasks unifier)))
+	    (loop for (task1 . new-iterator) = (funcall task-iterator)
+		while task1
+		do (setf task-iterator new-iterator)
+		do (seek-plans-task task1 state tasks top-tasks partial-plan
+				    partial-plan-cost depth which-plans
+				    protections 
+				    unifier)
+		when (and *plans-found* (eq which-plans :first) 
+			  (not (optimize-continue-p)))
+		do (return-from seek-plans nil)
+		do (trace-print :tasks (get-task-name task1)
+				"~2%Depth ~s, backtracking from task ~s"
+				depth
+				task1))))))))))
+
+(defun choose-immediate-task (immediate-tasks unifier)
+  "Which of the set of IMMEDIATE-TASKS should SHOP2 work on
+first?  Defaults to the first element, unless the user intervenes."
+  (if *hand-steer*
+      (user-choose-task immediate-tasks unifier t)
+      (car immediate-tasks)))
+
+(defun task-iterator (task-list unifier)
+  "This function allows customization of choice of pending task
+to expand.  For now, just loops through them.  
+SHOP2 search behavior could be changed by replacing this function
+definition or advising or fwrapping it.  Note that SORT is not
+going to be a good way to do this, because destructive modification may
+damage the state of the planner.
+  TASK-ITERATOR will return a new THUNK based on the TASK-LIST and the UNIFIER.
+When FUNCALLed, the THUNK will return a cons of a next task from task-list to be 
+attempted, and a new THUNK to be used for the next try, or nothing if there's
+no next try.  A cons is used in this case to fit more easily into a loop."
+  #'(lambda ()
+      (cons (car task-list)
+	    (task-iterator (cdr task-list) unifier))))
+
+(defun user-choose-task (task-list unifier &optional (immediate nil))
+  "Function called to allow a user to choose the next task for expansion, instead 
+of SHOP2."
+  (let ((num-tasks (length task-list)))
+    (format t "~&Choose a~:[ ~;n immediate ~] task for expansion:~%"
+	    immediate)
+    (if (= num-tasks 1)
+	(let ((input (y-or-n-p "~&Only one candidate ~:[~;immediate ~] task for expansion:~%~T~S~%Proceed?~%"
+			       immediate (apply-substitution (first task-list) unifier))))
+	  (if input
+	      (first task-list)
+	      (if (y-or-n-p "Abort planning?")
+		  (throw 'user-done nil)
+		  (user-choose-task task-list immediate))))
+	(progn
+	  (loop for i from 0
+		for task in task-list
+		for bound-task = (apply-substitution task unifier)
+		do (format t "~D - ~S~%" i bound-task))
+	  (let ((input (read)))
+	    (if (and (fixnump input)
+		     (>= input 0)
+		     (< input num-tasks))
+		(nth input task-list)
+		(user-choose-task task-list immediate)))))))
 
 (defun seek-plans-task (task1 state tasks top-tasks partial-plan
                               partial-plan-cost depth which-plans
-                              protections)
+                              protections
+			      unifier
+			      )
   (let ((task-name (get-task-name task1))
         (task-body (get-task-body task1)))
     (trace-print :tasks task-name
                  "~2%Depth ~s, trying task ~s"
                  depth
                  task1)
+;;    (y-or-n-p "continue?")
     (if (primitivep task-name)
-      (seek-plans-primitive task1 task-name task-body state tasks top-tasks
-                            partial-plan partial-plan-cost depth which-plans
-                            protections)
-      (seek-plans-nonprimitive task1 task-name task-body state tasks top-tasks
-                               partial-plan partial-plan-cost depth
-                               which-plans protections))))
+	(seek-plans-primitive task1 task-name task-body state tasks top-tasks
+			      partial-plan partial-plan-cost depth which-plans
+			      protections
+			      unifier 
+			      )
+	(seek-plans-nonprimitive task1 task-name task-body state tasks top-tasks
+				 partial-plan partial-plan-cost depth
+				 which-plans protections
+				 unifier
+				 ))))
 
 (defun seek-plans-primitive (task1 task-name task-body state tasks top-tasks
                                    partial-plan partial-plan-cost depth 
                                    which-plans protections
-                                   &aux m tasks1 top-tasks1)
+				   unifier
+                                   &aux m)
   (setq m (car (gethash task-name *operators*)))
   (unless m
     (error "No operator for task ~s" task1))
   (multiple-value-bind
-   (result1 tag protections cost)
-   (apply-operator state task-body m protections depth)
-   (when (eql result1 'fail)
-     (return-from seek-plans-primitive nil))
+      (result1 tag protections cost operator-unifier)
+      (apply-operator state task-body m protections depth
+		      unifier)
+    (when (eql result1 'fail)
+      (return-from seek-plans-primitive nil))
 
-    ;; The task was satisfied by a primitive operator.  Prune it
-    ;; from tasks, update top-tasks1, and call seek-plans recursively.
+    (when *plan-tree*
+      (record-operator task1 result1 operator-unifier))
 
-    (when *plan-tree* (record-operator task1 result1))
+    (multiple-value-bind (top-tasks1 tasks1)
+	(delete-task-top-list top-tasks tasks task1)
 
-    (multiple-value-setq (top-tasks1 tasks1) (delete-task-top-list top-tasks tasks task1))
-    
-    (let ((new-cost (+ cost partial-plan-cost)))
-     (when (and *optimize-cost*
-		(not (acceptable-cost-p new-cost)))
-       (trace-print :operators task-name
-		    "~2%Depth ~s, backtracking from operator ~s because the plan costs too much~%     task ~s~%     cost ~s"
-		    depth task-name (cdr task1) new-cost)
-       (retract-state-changes state tag)
-       (return-from seek-plans-primitive nil))
-     
-     (seek-plans state tasks1 top-tasks1 
-		 (cons cost (cons result1 partial-plan))
-		 new-cost (1+ depth) which-plans protections)
-     (retract-state-changes state tag)
-     nil)))
+      (let ((new-cost (+ cost partial-plan-cost)))
+	(when (and *optimize-cost*
+		   (not (acceptable-cost-p new-cost)))
+	  (trace-print :operators task-name
+		       "~2%Depth ~s, backtracking from operator ~s because the plan costs too much~%     task ~s~%     cost ~s"
+		       depth task-name (cdr task1) new-cost)
+	  (retract-state-changes state tag)
+	  (return-from seek-plans-primitive nil))
+
+	(seek-plans state tasks1 top-tasks1 
+		    (cons cost (cons result1 partial-plan))
+		    new-cost (1+ depth) which-plans protections
+		    operator-unifier))
+      (retract-state-changes state tag)
+      nil)))
+
 
 (defun seek-plans-nonprimitive (task1 task-name task-body state tasks 
-                                      top-tasks partial-plan partial-plan-cost
-                                      depth which-plans protections)
-  (let (result1 tasks1 top-tasks1 label r)
-    (dolist (m (gethash task-name *methods*))
-      (setq result1 (apply-method state task-body m protections depth))
+				      top-tasks partial-plan partial-plan-cost
+				      depth which-plans protections
+				      in-unifier
+				      )
+  (dolist (m (gethash task-name *methods*))
+    (multiple-value-bind (result1 unifier1)
+	(apply-method state task-body m protections depth in-unifier)
       (when result1
-        (dolist (lr result1)
-          (setq label (car lr))
-          (setq r (cdr lr))
-	  (when *plan-tree* (record-reduction task1 r))
-          (trace-print :methods label
-                       "~2%Depth ~s, applying method ~s~%      task ~s~%   precond ~s~% reduction ~s"
-                       depth label task1 (fourth m) r)
-          (trace-print :tasks task-name
-                       "~2%Depth ~s, reduced task ~s~% reduction ~s"
-                       depth task1 r)
-          (setq top-tasks1 (replace-task-top-list top-tasks task1 r))
-          (setq tasks1 (replace-task-main-list tasks task1 r))
-          (seek-plans state tasks1 top-tasks1 partial-plan
-                      partial-plan-cost (1+ depth) which-plans
-                      protections)
-          (and *plans-found* (eq which-plans :first)
-               (not (optimize-continue-p))
-               (return-from seek-plans-nonprimitive nil)))))))
+	(loop for lr in result1
+	      as u1 in unifier1
+	      for label = (car lr)
+	      for r = (cdr lr)
+	      with tasks1 and top-tasks1
+	      when *plan-tree*
+		do (record-reduction task1 r u1)
+	      do (trace-print :methods label
+		       "~2%Depth ~s, applying method ~s~%      task ~s~%   precond ~s~% reduction ~s"
+		       depth label task1 (fourth m) r)
+		 (trace-print :tasks task-name
+		       "~2%Depth ~s, reduced task ~s~% reduction ~s"
+		       depth task1 r)
+		 (setq top-tasks1 (replace-task-top-list top-tasks task1 r))
+		 (let ((new-task-net (replace-task-main-list tasks task1 r)))
+		   (setq tasks1 new-task-net))
+		 (seek-plans state tasks1 top-tasks1 partial-plan
+		      partial-plan-cost (1+ depth) which-plans
+		      protections
+		      u1)
+	      when (and *plans-found* (eq which-plans :first)
+				      (not (optimize-continue-p)))
+		do (return-from seek-plans-nonprimitive nil))))))
 
 ;;; Called when there are no top level tasks to run
-(defun seek-plans-null (state which-plans partial-plan partial-plan-cost depth)
+
+;;; Note: this is PARTLY hacked to handle tree returning, but still
+;;; needs much more work to be correct. Should handle the single-plan
+;;; case ok, others will be busted. [2004/02/05:rpg]
+(defun seek-plans-null (state which-plans partial-plan partial-plan-cost depth
+			      unifier)
+  ;; note that ACCEPTABLE-COST is actually a misnomer.  If you aren't
+  ;; thinking about cost at all (e.g., you are just trying to find the
+  ;; first plan, this will end up being T). [2004/09/14:rpg]
   (let ((acceptable-cost (acceptable-cost-p partial-plan-cost))
 	(final-plan (strip-NOPs (reverse partial-plan)))) 
 
@@ -2627,7 +3034,11 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
         (setq *depth-cutoff* (1- depth)
               *plans-found* nil)))
       (when acceptable-cost
-        (push-last final-plan *plans-found*))))
+        (push-last final-plan *plans-found*)
+	(push-last (copy-state state) *states-found*)
+	(push-last unifier *unifiers-found*)
+	)))
+  ;; should this better be (values)? [2004/02/11:rpg]
   nil)
 
 (defun get-task-name (task1)
@@ -2678,7 +3089,8 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
 ;;; ------------------------------------------------------------------------
 
 ; This function records the parents of each subtask in a reduction.
-(defun record-reduction (task1 reduction)
+(defun record-reduction (task1 reduction unifier)
+  (declare (ignore unifier))
   (let ((all-subtasks (extract-subtasks reduction)))
     (setf *subtask-parents*
 	  (nconc
@@ -2695,7 +3107,8 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
 
 ; This function records the task atom that produced a given operator
 ; instance.
-(defun record-operator (task1 operator)
+(defun record-operator (task1 operator unifier)
+  (declare (ignore unifier))
   (setf *operator-tasks*
 	(cons
 	 (list operator task1)
@@ -2762,13 +3175,26 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
 	  (cons parent rest-nodes)
 	rest-nodes))))
 
-(defun operator-task (operator)
-  (second (assoc (second operator) *operator-tasks*)))
+;;; Introduced an OPERATOR-NODE structure as a way of better
+;;; understanding the TREE extraction code. [2004/02/05:rpg]
+(defstruct (operator-node (:type list))
+  cost 
+  operator
+  position)
+
+;;; I think OPERATOR-TASK here actually applies to an operator NODE...
+(defun operator-task (operator-node)
+  (second (assoc (operator-node-operator operator-node) *operator-tasks*)))
 
 (defun plan-operator-nodes (plan &optional (n 0))
+  "This function translates operator expressions into operator nodes,
+assembling together the operator, its the position in the plan and cost."
   (if (null plan) nil
     (cons
-     (list (second plan) (first plan) n)
+     (make-operator-node
+      :cost (second plan)
+      :operator (first plan)
+      :position n)
      (plan-operator-nodes (rest (rest plan)) (1+ n)))))
 
 ;;; ------------------------------------------------------------------------
@@ -2817,7 +3243,13 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
     0
     (+ (cadr plan) (plan-cost (cddr plan)))))
 
+;;;---------------------------------------------------------------------------
+;;; This should only be called on plans with COSTS IN THEM!!!!!
+;;;---------------------------------------------------------------------------
 (defun shorter-plan (plan)
+  "Removes the internal operators from a plan sequence, and
+returns the resulting new sequence.  AFAICT, this also removes the costs.
+Non-destructive."
   (cond 
    ((null plan) nil)
    ((internal-operator-p (first (first plan)))
@@ -2887,6 +3319,10 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
       (setf i (1+ i)))
     t))
 
+
+;;; Note: I believe the following comment is wrong.  Instead, I
+;;; believe that this function is actually called on add and delete
+;;; lists as well as on the preconditions. [2004/02/03:rpg]
 
 ;;; this is the main function that does the pre-processing, it
 ;;; looks through the preconditions finding the forall 
@@ -3000,35 +3436,37 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
 ;;; ------------------------------------------------------------------------
 ;;; Top-level calls to the planner
 ;;; ------------------------------------------------------------------------
-
-
-;;; FIND-PLANS looks for solutions to the planning problem named PROBLEM.
-;;; The keyword arguments are as follows:
-;;;   :WHICH tells what kind of search to do.  Its possible values are:
-;;;      :FIRST      - depth-first search, returning the first plan found.
-;;;      :ALL        - depth-first search for *all* plans.
-;;;      :SHALLOWEST - depth-first search for the shallowest plan in the
-;;;                    search space (this usually is also the shortest plan).
-;;;                    If there's more than one such plan, return the first.
-;;;      :ALL-SHALLOWEST - depth-first search for all shallowest plans.
-;;;      :ID-FIRST   - iterative deepening search, returning the first plan.
-;;;      :ID-ALL     - iterative deepening search for all shallowest plans.
-;;;   :VERBOSE says how much information to print about the plans SHOP2
-;;;            finds.  Its values can be any of the following:
-;;;      0 or NIL    - print nothing
-;;;      1 or :STATS - print some statistics on SHOP2's operation
-;;;      2 or :PLANS - print the stats and print all plans found, but omit
-;;;           operator costs and omit all operators whose names start with "!!"
-;;;      3 or :LONG-PLANS - print the stats and plans, including all operator
-;;;           costs and all operators (even those whose names start with "!!")
-;;;   :GC says whether to do a garbage collection before calling SEEK-PLANS
-
 (defun find-plans (problem
                    &key (which *which*) (verbose *verbose*)
-                   (gc *gc*) (pp *pp*) (state *state-encoding*) 
-                   (plan-tree *plan-tree*) (optimize-cost *optimize-cost*)
-                   (time-limit *time-limit*) (explanation *explanation*))
-  (declare (ignorable gc))
+			(gc *gc*) (pp *pp*) (state *state-encoding*) 
+			(plan-tree *plan-tree*) (optimize-cost *optimize-cost*)
+			(time-limit *time-limit*) (explanation *explanation*)
+			(depth-cutoff *depth-cutoff*)
+			hand-steer leashed)
+  "FIND-PLANS looks for solutions to the planning problem named PROBLEM.       
+   The keyword arguments are as follows:                                       
+     :WHICH tells what kind of search to do.  Its possible values are:         
+        :FIRST      - depth-first search, returning the first plan found.      
+        :ALL        - depth-first search for *all* plans.                      
+        :SHALLOWEST - depth-first search for the shallowest plan in the        
+                      search space (this usually is also the shortest plan).   
+                      If there's more than one such plan, return the first.    
+        :ALL-SHALLOWEST - depth-first search for all shallowest plans.         
+        :ID-FIRST   - iterative deepening search, returning the first plan.    
+        :ID-ALL     - iterative deepening search for all shallowest plans.     
+     :VERBOSE says how much information to print about the plans SHOP2         
+              finds.  Its values can be any of the following:                  
+        0 or NIL    - print nothing                                            
+        1 or :STATS - print some statistics on SHOP2's operation               
+        2 or :PLANS - print the stats and print all plans found, but omit      
+             operator costs and omit all operators whose names start with \"!!\" 
+        3 or :LONG-PLANS - print the stats and plans, including all operator   
+             costs and all operators (even those whose names start with \"!!\")  
+     :GC says whether to do a garbage collection before calling SEEK-PLANS
+     :PLAN-TREE indicates whether or not to return a plan tree."
+  ;; my compiler doesn't like this --- what is IGNORABLE?
+  ;;  (declare (ignorable gc))
+	     
   #+(or :MCL :allegro)(if gc (gc))
   (let* ((*start-run-time* (get-internal-run-time))
          (*start-real-time* (get-internal-real-time))
@@ -3045,7 +3483,9 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
          (total-expansions 0) (total-inferences 0)
          (old-expansions 0) (old-inferences 0)
          (total-run-time 0) (total-real-time 0)
-         (*depth-cutoff* nil) (*plans-found* nil)
+	 ;; make this controllable [2004/08/06:rpg]
+         (*depth-cutoff* depth-cutoff)
+	 (*plans-found* nil)
          (*optimal-plan* 'fail)
 	 (*explanation* explanation) (*attribution-list* nil)
 	 (*external-access* (fboundp 'external-access-hook))
@@ -3053,7 +3493,18 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
          (state (make-state (get-state problem)))
          (tasks (get-tasks problem))
          *optimal-cost* *verbose*
-         new-run-time new-real-time top-tasks)
+         new-run-time new-real-time top-tasks
+	 ;; used for tree-building code.
+	 (*unifiers-found* nil)
+	 ;; if you want the state trajectory [2004/09/14:rpg]
+	 (*states-found* nil)
+	 ;; used dynamically to allow the user to choose tasks for
+	 ;; expansion, rather than allowing SHOP2 to search
+	 ;; autonomously. [2004/03/30:rpg]
+	 (*hand-steer* hand-steer)
+	 (*leashed* leashed)
+	 )
+	 
     
     (setq top-tasks (get-top-tasks tasks))
     (determine-verbosity verbose)
@@ -3062,39 +3513,46 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
       (format t "~%---------------------------------------------------------------------------")
       (format t "~%Problem ~s with :WHICH = ~s, :VERBOSE = ~s" problem which verbose)    
       (if optimize-cost
-        (format t ", OPTIMIZE-COST = ~s" optimize-cost)))
-        
-    (ecase which
-      ((:id-first :id-all)
-       (print-stats-header "Depth")
-       (do ((*depth-cutoff* 0 (1+ *depth-cutoff*)))
-         (*plans-found* nil)
-         (setq new-run-time (get-internal-run-time)
-               new-real-time (get-internal-real-time))
-         (catch-internal-time
-          (seek-plans state tasks top-tasks nil 0 0 
-                      (if (eq which :id-first) :first :all) nil))
-         (setq new-run-time (- (get-internal-run-time) new-run-time)
-               new-real-time (- (get-internal-real-time) new-real-time)
-               total-run-time (+ total-run-time new-run-time)
-               total-real-time (+ total-real-time new-real-time)
-               total-expansions (+ total-expansions *expansions*)
-               total-inferences (+ total-inferences *inferences*))
-         (print-stats *depth-cutoff* *plans-found* *expansions*
-                      *inferences* new-run-time new-real-time)
-         (and (equal *expansions* old-expansions)
-              (equal *inferences* old-inferences)
-              (return nil))  ; abort if nothing new happened on this iteration
-         (setq old-expansions *expansions*
-               old-inferences *inferences*)
-         (setq *expansions* 0
-               *inferences* 0)))
-      
-      ((:first :all :shallowest :all-shallowest)
-       (catch-internal-time
-        (seek-plans state tasks top-tasks nil 0 0 which nil))
-       (setq total-expansions *expansions*
-             total-inferences *inferences*)))
+	  (format t ", OPTIMIZE-COST = ~s" optimize-cost)))
+    ;; if *hand-steer* allows the user to abort planning.
+    (catch 'user-done 
+      (ecase which 
+	((:id-first :id-all)
+	 (print-stats-header "Depth")
+	 (do ((*depth-cutoff* 0 (1+ *depth-cutoff*)))
+	     (*plans-found* nil)
+	   (setq new-run-time (get-internal-run-time)
+		 new-real-time (get-internal-real-time))
+	   (catch-internal-time
+	    (seek-plans state tasks top-tasks nil 0 0 
+			(if (eq which :id-first) :first :all) nil
+			;; unifier
+			nil
+			))
+	   (setq new-run-time (- (get-internal-run-time) new-run-time)
+		 new-real-time (- (get-internal-real-time) new-real-time)
+		 total-run-time (+ total-run-time new-run-time)
+		 total-real-time (+ total-real-time new-real-time)
+		 total-expansions (+ total-expansions *expansions*)
+		 total-inferences (+ total-inferences *inferences*))
+	   (print-stats *depth-cutoff* *plans-found* *expansions*
+			*inferences* new-run-time new-real-time)
+	   (and (equal *expansions* old-expansions)
+		(equal *inferences* old-inferences)
+		(return nil))		; abort if nothing new happened on this iteration
+	   (setq old-expansions *expansions*
+		 old-inferences *inferences*)
+	   (setq *expansions* 0
+		 *inferences* 0)))
+	
+	((:first :all :shallowest :all-shallowest)
+	 (catch-internal-time
+	  (seek-plans state tasks top-tasks nil 0 0 which nil
+		      ;; unifier
+		      nil
+		      ))
+	 (setq total-expansions *expansions*
+	       total-inferences *inferences*))))
     
     (if (numberp *optimize-cost*)
         (setq *plans-found*
@@ -3110,18 +3568,29 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.")
     (print-stats "" *plans-found* total-expansions total-inferences
      total-run-time total-real-time)
     (let ((plan-trees
-           (when *plan-tree* (mapcar #'extract-tree *plans-found*))))
+	   (when *plan-tree*
+	     (loop for plan in *plans-found*
+		   for unifier in *unifiers-found*
+		   for tree = (extract-tree plan)
+		   collect (apply-substitution tree unifier)))))
       (when *print-plans*
-        (cond
-         (*plan-tree*
-          (format t "~%Plans trees:~%~s~%~%" plan-trees))
-         (*pshort*
-          (format t "~%Plans:~%~s~%~%" (mapcar #'shorter-plan *plans-found*)))
-         (t
-          (format t "~%Plans:~%~s~%~%" *plans-found*))))
-      (values (if *plan-tree* (list plan-trees *plans-found*) *plans-found*)
-              (+ 0.0
-                 (/ total-run-time
-                    internal-time-units-per-second))))))
+	(cond
+	 (*plan-tree*
+	  (format t "~%Plan trees:~%~s~%~%" plan-trees))
+	 (*pshort*
+	  (format t "~%Plans:~%~s~%~%" (mapcar #'shorter-plan *plans-found*)))
+	 (t
+	  (format t "~%Plans:~%~s~%~%" *plans-found*))))
+      (if *plan-tree*
+	  (values *plans-found*
+		  (+ 0.0
+		     (/ total-run-time
+			internal-time-units-per-second))
+		  plan-trees
+		  *states-found*)
+	(values *plans-found*
+		(+ 0.0
+		   (/ total-run-time
+		      internal-time-units-per-second)))))))
 
 (format t "~2%~a~%" *version*)
