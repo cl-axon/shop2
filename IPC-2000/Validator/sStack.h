@@ -5,7 +5,7 @@
   Simple Stack.  
 
   $Date: 2004/09/18 16:45:07 $
-  $Revision: 1.1 $
+  $Revision: 1.1.1.1 $
 
   This is an STL deque with a stack-like interface added.  This is an
   insecure stack with all the deque interface deliberately left

@@ -1,4 +1,4 @@
-// $Header: /cvsroot/shop/shop2/IPC-2000/Validator/FlexLexer.h,v 1.1 2004/09/18 16:45:08 dananau Exp $
+// $Header: /cvsroot/shop/shop2/IPC-2000/Validator/FlexLexer.h,v 1.1.1.1 2004/09/18 16:45:08 dananau Exp $
 
 // FlexLexer.h -- define interfaces for lexical analyzer classes generated
 //		  by flex
