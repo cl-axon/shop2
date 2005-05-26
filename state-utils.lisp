@@ -44,3 +44,13 @@
 	     H1)
     H2))
 
+(defun state-trajectory (state)
+  (let ((state (copy-state state)))
+    (loop for state-info in (state-tags-info state)
+	for state-list = (state-atoms state)
+	with trajectory
+	do (push state-list trajectory)
+	   (retract-state-changes state (first state-info))
+	finally (return trajectory))))
+	   
+	
