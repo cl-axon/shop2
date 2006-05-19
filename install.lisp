@@ -16,4 +16,5 @@
 (format t "Compiling shop2.lisp in Allegro Lisp ... ~%~%")
 
 (compile-file "shop2.lisp")
+(compile-file "state-utils.lisp")
 
