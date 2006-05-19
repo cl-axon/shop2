@@ -602,6 +602,12 @@ will consult the user even in these cases.")
 (defvar *break-on-backtrack* nil
   "If this variable is bound to T, SHOP will enter a break loop upon backtracking.")
 
+(defvar *task-iterator*
+    NIL
+  "This should either be NIL or a function that takes a list of tasks
+and returns a thunk that will deliver the tasks one by one.")
+
+
 ;;; It is relatively common practice in Lispworks to use ! as a macro
 ;;;  for :redo.  This will really mess up interpretation of operators in
 ;;;  SHOP, since all operators start with "!".  Thus, we will turn off
@@ -2859,24 +2865,26 @@ structure could be removed, and a true struct could be used instead."
 			   depth
 			   task1)
 	      (backtrack "Task ~S failed" task1))
-	    (progn
-;;	      (break "about to get task-iterator for:~%~{~T~S~%~}" top-tasks)
-	      (let ((task-iterator (task-iterator top-tasks unifier)))
-	    (loop for (task1 . new-iterator) = (funcall task-iterator)
-		while task1
-		do (setf task-iterator new-iterator)
-		do (seek-plans-task task1 state tasks top-tasks partial-plan
-				    partial-plan-cost depth which-plans
-				    protections 
-				    unifier)
-		when (and *plans-found* (eq which-plans :first) 
-			  (not (optimize-continue-p which-plans)))
-		do (return-from seek-plans nil)
-		do (trace-print :tasks (get-task-name task1)
-				"~2%Depth ~s, backtracking from task ~s"
-				depth
-				task1)
-		  (backtrack "Task ~S failed" task1))))))))))
+	  (progn
+	    ;;	      (break "about to get task-iterator for:~%~{~T~S~%~}" top-tasks)
+	    (let ((task-iterator (if *task-iterator*
+				     (funcall *task-iterator* top-tasks unifier)
+				     (task-iterator top-tasks unifier))))
+	      (loop for (task1 . new-iterator) = (funcall task-iterator)
+		  while task1
+		  do (setf task-iterator new-iterator)
+		  do (seek-plans-task task1 state tasks top-tasks partial-plan
+				      partial-plan-cost depth which-plans
+				      protections 
+				      unifier)
+		  when (and *plans-found* (eq which-plans :first) 
+			    (not (optimize-continue-p which-plans)))
+		  do (return-from seek-plans nil)
+		  do (trace-print :tasks (get-task-name task1)
+				  "~2%Depth ~s, backtracking from task ~s"
+				  depth
+				  task1)
+		     (backtrack "Task ~S failed" task1))))))))))
 
 (defun choose-immediate-task (immediate-tasks unifier)
   "Which of the set of IMMEDIATE-TASKS should SHOP2 work on
@@ -2988,6 +2996,14 @@ of SHOP2."
       (retract-state-changes state tag)
       nil)))
 
+(define-condition no-method-for-task (error)
+  ((task-name
+    :initarg :task-name
+    ))
+  (:report report-no-method))
+  
+(defmethod report-no-method ((x no-method-for-task) str)
+  (format str "No method definition for task ~A" (slot-value x 'task-name)))
 
 (defun seek-plans-nonprimitive (task1 task-name task-body state tasks 
 				      top-tasks partial-plan partial-plan-cost
@@ -2996,7 +3012,7 @@ of SHOP2."
 				      )
   (let ((methods (gethash task-name *methods*)))
     (unless methods
-      (error "No method definition for task ~A" task-name))
+      (error (make-condition 'no-method-for-task :task-name task-name)))
     (dolist (m methods)
       (multiple-value-bind (result1 unifier1)
 	  (apply-method state task-body m protections depth in-unifier)
@@ -3340,6 +3356,16 @@ Non-destructive."
    (t
     (cons (first plan) (shorter-plan (rest (rest plan)))))))
 
+(defun remove-costs (plan-and-costs)
+  "The SHOP2 plans come with the operators interspersed with their costs.
+This function just throws away the costs."
+  (loop with planlist = plan-and-costs
+	while planlist
+	for (operator cost . rest) = planlist
+	do (assert (numberp cost))
+	collect operator
+	do (setf planlist rest)))
+
 (defun internal-operator-p (operator-name)
   (if (symbolp operator-name) 
       (let ((name (symbol-name operator-name)))
@@ -3535,7 +3561,10 @@ Non-destructive."
 			(plan-tree *plan-tree*) (optimize-cost *optimize-cost*)
 			(time-limit *time-limit*) (explanation *explanation*)
 			(depth-cutoff *depth-cutoff*)
-			hand-steer leashed)
+			hand-steer leashed
+			;; function to guide task choice off stack [2005/09/23:rpg]
+			task-iterator
+			)
   "FIND-PLANS looks for solutions to the planning problem named PROBLEM.       
    The keyword arguments are as follows:                                       
      :WHICH tells what kind of search to do.  Its possible values are:         
@@ -3596,6 +3625,7 @@ Non-destructive."
 	 ;; autonomously. [2004/03/30:rpg]
 	 (*hand-steer* hand-steer)
 	 (*leashed* leashed)
+	 (*task-iterator* task-iterator)
 	 )
 	 
     
@@ -3654,7 +3684,9 @@ Non-destructive."
 		      ))
 	 (setq total-expansions *expansions*
 	       total-inferences *inferences*))))
-    
+
+    ;; I'm pretty sure that this needs to be modified to update the
+    ;; unifiers and states found as well.  [2005/01/06:rpg]
     (if (numberp *optimize-cost*)
         (setq *plans-found*
               (delete-if
