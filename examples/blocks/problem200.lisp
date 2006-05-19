@@ -252,4 +252,4 @@
 (make-problem-set 'setX '(
 		 bw_ran_200_1
 ))
-(do-problems 'setX :verbose :stats)
+;;(do-problems 'setX :verbose :stats)
