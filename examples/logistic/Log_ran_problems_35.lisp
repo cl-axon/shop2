@@ -2722,7 +2722,7 @@
 ))
 
 ;;-------------------------------
-(make-problem-set 'setX '(
+(make-problem-set 'set35 '(
 		 Log-ran-35-1
 		 Log-ran-35-2
 		 Log-ran-35-3
@@ -2734,4 +2734,4 @@
 		 Log-ran-35-9
 		 Log-ran-35-10
 ))
-(do-problems 'setX :verbose 1)
+;;(do-problems 'set35 :verbose 1)
