@@ -1,4 +1,58 @@
-Welcome to SHOP2!  This distribution contains the following files:
+Welcome to SHOP2!  
+
+This is a release candidate for SHOP2 (lisp version), version 1.3.
+This is primarily a bugfix release to follow on to SHOP2 1.2.  We
+expect that this will be the last release in SHOP2 1.x, aside from
+bugfixes, and that further effort will move to a new version 2.x that
+will have a substantially new architecture to better support modular,
+object-oriented extensions to SHOP2 and integrating SHOP2 into larger
+applications.
+
+There are two substantial changes from SHOP2 1.2 to 1.3:
+
+1.  The new default loading method is to use the ASDF (Another System
+Definition Facility) system loader.  Those unfamiliar with ASDF can
+see the web page http://www.cliki.net/asdf for more details.  However,
+it is very likely that if you have a modern Common Lisp
+implementation, ASDF is already distributed with your common lisp.  A
+good first test in loading SHOP2 is to do the following:
+
+a.  make a symbolic link from your asdf system definition file (this
+will be system dependent) to shop2.asd.  Do NOT copy the file; link it.
+
+If you don't know where this is, you can try starting up your lisp
+implementation and doing the following:
+
+(require :asdf) [if this fails, you need to install asdf, see the above website]
+asdf:*central-registry* [this should print a list of directories to hold asd links.]
+
+b.  start your lisp compiler
+
+c.  (require :asdf) --- if this doesn't work, obtain and install a
+copy of asdf, using the above web site.
+
+d.  (asdf:oos 'asdf:load-op :shop2)
+
+If you are lucky (users of up-to-date ACL and SBCL may expect to be
+lucky), this will Just Work.
+
+2.  There is now an extensive regression test suite for SHOP2.  To
+run the regression test suite, you may type:
+
+(asdf:oos 'asdf:test-op :shop2)
+
+WARNING:  this may take a couple of days to finish!  This runs all the
+domain descriptions distributed with SHOP2, and checks the results
+against saved plans.  
+
+We would be particularly interested in getting bug reports (or, better
+yet, patches!) from people who have tried to use SHOP2 with lisps
+other than Allegro and SBCL and on platforms other than Linux.  We
+would also be interested in hearing from people who have run the
+regression test suite.
+
+
+This distribution contains the following files:
 
 shop2.lisp  The SHOP2 program; at the top of the program file
             is the SHOP2 license
