@@ -1,3 +1,4 @@
+(in-package :shop2-user)
 (defproblem pfile19 DEPOT
   (
     ;;;

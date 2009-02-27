@@ -1,3 +1,4 @@
+(in-package :shop2-user)
 ;; name: btest.lisp
 ;; #blocks: 100
 ;; seed:1022262828

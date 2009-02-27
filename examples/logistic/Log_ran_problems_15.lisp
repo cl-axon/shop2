@@ -1,3 +1,4 @@
+(in-package :shop2-user)
 (defproblem log-ran-15-1 logistics
    (
 	(AIRPLANE plane1)

@@ -38,10 +38,11 @@
 ;;;
 
 ;;;-------------problem set 2----------------------------------------
+(in-package :shop2-user)
 
+(defun logistics-domain ()
 
-
-(defdomain logistics
+  (defdomain logistics
    (
     ;; basic operators
 
@@ -189,7 +190,10 @@
     (:- (different ?x ?y) ((not (same ?x ?y))))
 
 
-    ))
+    )))
+
+(eval-when (:load-toplevel)
+  (logistics-domain))
 
 
 

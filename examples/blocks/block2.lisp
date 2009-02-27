@@ -1,3 +1,4 @@
+(in-package :shop2-user)
 ;;; This file contains a SHOP domain representation of the block-stacking
 ;;; algorithm from the following paper:
 ;;;    N. Gupta and D. Nau, On the complexity of blocks-world planning,
@@ -8,7 +9,8 @@
 ;;; Declare all the data
 ;;; ------------------------------------------------------------------------
 
-(defdomain blocks-normal
+(defun define-blocks-domain ()
+  (defdomain blocks-normal
   (
     ;; basic block-stacking operators
     
@@ -202,4 +204,8 @@
         ((on ?x ?z) (goal (on ?y ?z)) (not (same ?x ?y)))
         ;; need to move x if x is on something else that needs to be moved 
         ((on ?x ?w) (need-to-move ?w)))
-    ))
+    )))
+
+(eval-when (:load-toplevel)
+  (define-blocks-domain))
+      
