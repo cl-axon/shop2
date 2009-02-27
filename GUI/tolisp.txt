@@ -1,1 +1,0 @@
-(load "umd/cs/shop2/shop2")

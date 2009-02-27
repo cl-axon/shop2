@@ -1,3 +1,5 @@
+;;; -*- Mode: common-lisp; -*-
+;;;
 ;;; Version: MPL 1.1/GPL 2.0/LGPL 2.1
 ;;;
 ;;; The contents of this file are subject to the Mozilla Public License
@@ -10,11 +12,16 @@
 ;;; License for the specific language governing rights and limitations under
 ;;; the License.
 ;;;
-;;; The Original Code is SHOP2.  ASDF system definitions developed by
-;;; Robert P. Goldman, John Maraist.  Portions created by Drs. Goldman
-;;; and Maraist are Copyright (C) 2004-2007 SIFT, LLC.  These
-;;; additions and modifications are also available under the
-;;; MPL/GPL/LGPL licensing terms.
+;;; The Original Code is SHOP2.
+;;;
+;;; The Initial Developer of the Original Code is the University of
+;;; Maryland. Portions created by the Initial Developer are Copyright (C)
+;;; 2002,2003 the Initial Developer. All Rights Reserved.
+;;;
+;;; Additional developments made by Robert P. Goldman, John Maraist.
+;;; Portions created by Drs. Goldman and Maraist are Copyright (C)
+;;; 2004-2007 SIFT, LLC.  These additions and modifications are also
+;;; available under the MPL/GPL/LGPL licensing terms.
 ;;;
 ;;;
 ;;; Alternatively, the contents of this file may be used under the terms of
@@ -31,7 +38,7 @@
 ;;; or the LGPL.
 ;;; ----------------------------------------------------------------------
 
-;;; Smart Information Flow Technologies Copyright 2006-2007 Unpublished work
+;;; Smart Information Flow Technologies Copyright 2009 Unpublished work
 ;;;
 ;;; GOVERNMENT PURPOSE RIGHTS
 ;;;
@@ -51,37 +58,35 @@
 ;;; portions thereof marked with this legend must also reproduce the
 ;;; markings.
 
-(asdf:oos 'asdf:load-op :shop-asd)
-(in-package :shop2-asd)
-(load (merge-pathnames "version.lisp" *load-truename*))
+(in-package :shop2.theorem-prover)
 
-;;;
-;;; The main system.
-;;;
-(defsystem :shop2
-    :serial t
-    :default-component-class cl-file-with-defconstants
-    :depends-on ((:version "shop2-common" #.cl-user::+shop-version+)
-                        (:version "shop2-theorem-prover" #.cl-user::+shop-version+))
-    :version #.cl-user::+shop-version+
-    :in-order-to ((test-op (test-op :test-shop2)))
-    :components  (
-       (:file "package")
-       (:file "decls")
+(defvar *domain* nil)
 
-       (:module io
-		:components ((:file "input")
-			            (:file "output")
-			            (:file "debugging")))
-       (:module pddl
-		:components ((:file "pddl")))
-       (:module search
-		:pathname "planning-engine/"
-		:components ((:file "protections")
-			             (:file "task-reductions")
-			             (:file "search")))
-       (:module tree
-		:pathname "planning-tree/"
-		:components ((:file "tree-accessors")
-			             (:file "tree-reductions")))
-       (:file "shop2")))
+(defgeneric axioms (thpr-domain predicate)
+  (:documentation "Return a list of all the SHOP2
+axioms for PREDICATE in THPR-DOMAIN."))
+
+(defclass has-axioms-mixin ()
+     ((axioms
+       :initarg :axioms
+       :reader domain-axioms
+       ))
+  )
+
+
+;;;(defclass domain (shop2.common:domain has-axioms-mixin)
+(defclass thpr-domain (has-axioms-mixin)
+  (
+   (domain-name
+    :initarg :domain-name
+    :initarg :name
+    :reader domain-name
+    )
+   (default-state-type
+    :initarg :default-state-type
+    :reader default-state-type
+    ;; default default!
+    :initform :mixed)
+   )
+  (:documentation "An object representing a SHOP2 theorem prover domain.")
+  )

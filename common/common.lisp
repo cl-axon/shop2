@@ -1,3 +1,5 @@
+;;; -*- Mode: common-lisp; package: shop2.common; -*-
+;;;
 ;;; Version: MPL 1.1/GPL 2.0/LGPL 2.1
 ;;;
 ;;; The contents of this file are subject to the Mozilla Public License
@@ -10,11 +12,16 @@
 ;;; License for the specific language governing rights and limitations under
 ;;; the License.
 ;;;
-;;; The Original Code is SHOP2.  ASDF system definitions developed by
-;;; Robert P. Goldman, John Maraist.  Portions created by Drs. Goldman
-;;; and Maraist are Copyright (C) 2004-2007 SIFT, LLC.  These
-;;; additions and modifications are also available under the
-;;; MPL/GPL/LGPL licensing terms.
+;;; The Original Code is SHOP2.
+;;;
+;;; The Initial Developer of the Original Code is the University of
+;;; Maryland. Portions created by the Initial Developer are Copyright (C)
+;;; 2002,2003 the Initial Developer. All Rights Reserved.
+;;;
+;;; Additional developments made by Robert P. Goldman, John Maraist.
+;;; Portions created by Drs. Goldman and Maraist are Copyright (C)
+;;; 2004-2007 SIFT, LLC.  These additions and modifications are also
+;;; available under the MPL/GPL/LGPL licensing terms.
 ;;;
 ;;;
 ;;; Alternatively, the contents of this file may be used under the terms of
@@ -50,38 +57,46 @@
 ;;; expiration date shown above. Any reproduction of the software or
 ;;; portions thereof marked with this legend must also reproduce the
 ;;; markings.
+(in-package :shop2.common)
 
-(asdf:oos 'asdf:load-op :shop-asd)
-(in-package :shop2-asd)
-(load (merge-pathnames "version.lisp" *load-truename*))
+(defmacro shop-fail () `'fail)
 
+;;; [mpelican:20090226.1928CST] domain is no longer defined in shop2.common.
+;;; Look at shop2.theorem-prover:thpr-domain and shop2:domain.
+;;;(defclass domain ()
+;;;     ((domain-name
+;;;       :initarg :domain-name
+;;;       :reader domain-name
+;;;       :initarg :name
+;;;       )
+;;;      )
+;;;  (:documentation "An object representing a SHOP2 domain.")
+;;;  )
 ;;;
-;;; The main system.
+;;;(defmethod print-object ((x domain) stream)
+;;;  (when *print-readably*
+;;;    (error 'print-not-readable :object x))
+;;;  (print-unreadable-object (x stream)
+;;;    (format stream "DOMAIN: ~A" (domain-name x))))
 ;;;
-(defsystem :shop2
-    :serial t
-    :default-component-class cl-file-with-defconstants
-    :depends-on ((:version "shop2-common" #.cl-user::+shop-version+)
-                        (:version "shop2-theorem-prover" #.cl-user::+shop-version+))
-    :version #.cl-user::+shop-version+
-    :in-order-to ((test-op (test-op :test-shop2)))
-    :components  (
-       (:file "package")
-       (:file "decls")
+;;;
+;;;;;; domain object, containing domain attributes, and
+;;;;;; useful for subclassing behaviors
+;;;(defvar *domain*)
 
-       (:module io
-		:components ((:file "input")
-			            (:file "output")
-			            (:file "debugging")))
-       (:module pddl
-		:components ((:file "pddl")))
-       (:module search
-		:pathname "planning-engine/"
-		:components ((:file "protections")
-			             (:file "task-reductions")
-			             (:file "search")))
-       (:module tree
-		:pathname "planning-tree/"
-		:components ((:file "tree-accessors")
-			             (:file "tree-reductions")))
-       (:file "shop2")))
+
+;;; the following have been absorbed into being slots of the DOMAIN
+;;; objects.  See definition of DOMAIN object. [2006/07/05:rpg]
+;;;(defvar *methods*)                  ; methods in the current planning domain
+;;;(defvar *operators*)                ; operators in the current planning domain
+;;;(defvar *axioms*)                   ; axioms in the current planning domain
+
+(defparameter *current-state* nil) ; current state (for find-satisfiers)
+(defparameter *state-encoding* :mixed) ; current encoding of states
+
+(defparameter *inferences* 0)       ; number of logical inferences so far
+
+(defparameter *external-access* nil)  ; whether to access external data
+
+(defparameter *attribution-list* nil) ; sources of facts from external access
+

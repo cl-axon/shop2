@@ -51,37 +51,24 @@
 ;;; portions thereof marked with this legend must also reproduce the
 ;;; markings.
 
-(asdf:oos 'asdf:load-op :shop-asd)
+(defpackage :shop2-asd
+    (:use :common-lisp :asdf)
+    (:shadow #:defconstant)
+    #+(or allegro sbcl)
+    (:import-from #+allegro aclmop     #+sbcl sb-mop
+                  #:class-direct-superclasses)
+    )
 (in-package :shop2-asd)
-(load (merge-pathnames "version.lisp" *load-truename*))
 
-;;;
-;;; The main system.
-;;;
-(defsystem :shop2
-    :serial t
-    :default-component-class cl-file-with-defconstants
-    :depends-on ((:version "shop2-common" #.cl-user::+shop-version+)
-                        (:version "shop2-theorem-prover" #.cl-user::+shop-version+))
-    :version #.cl-user::+shop-version+
-    :in-order-to ((test-op (test-op :test-shop2)))
-    :components  (
-       (:file "package")
-       (:file "decls")
+(defmacro defconstant (name value &optional doc)
+  `(cl:defconstant ,name (if (boundp ',name) (symbol-value ',name) ,value)
+     ,@(when doc (list doc))))
 
-       (:module io
-		:components ((:file "input")
-			            (:file "output")
-			            (:file "debugging")))
-       (:module pddl
-		:components ((:file "pddl")))
-       (:module search
-		:pathname "planning-engine/"
-		:components ((:file "protections")
-			             (:file "task-reductions")
-			             (:file "search")))
-       (:module tree
-		:pathname "planning-tree/"
-		:components ((:file "tree-accessors")
-			             (:file "tree-reductions")))
-       (:file "shop2")))
+(defclass cl-file-with-defconstants ( cl-source-file )
+     ()
+  (:documentation "Allows us to quash SBCL errors about
+complex defconstants."))
+
+(defconstant +shop-package+ :shop2-user)
+
+(defsystem :shop-asd)
