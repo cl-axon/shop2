@@ -70,21 +70,12 @@ This distribution contains the following files:
 
 ``examples/``   Example domains in seperate subdirectores:
 
-    ``depots/``    The Depots domain from the third international planning
-            competition (at AIPS-2002)
+* ``depots/``    The Depots domain from the third international planning competition (at AIPS-2002)
+* ``toy/``       Some very simple toy examples
+* ``logistics/``  A simple logistics planning domain
+* ``blocks/``     A relatively sophisticated encoding of the traditional blocks-world planning domain
 
-    ``UMT2/``	    The UM Translog 2 domain from the third international planning
-            competition.
-
-    ``toy/``       Some very simple toy examples
-
-    ``logistics/``  A simple logistics planning domain
-
-    ``blocks/``     A relatively sophisticated encoding of the traditional
-             blocks-world planning domain
-
-    See documentation files (e.g., README.txt) in the example
-    directories for more information about those examples.
+See documentation files (e.g., README.txt) in the example directories for more information about those examples.
 
 ``IPC-2000/``       The logistics domain in the second international planning
                 competition (at AIPS-2000).  This directory contains the
