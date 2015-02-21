@@ -43,8 +43,7 @@ This distribution contains the following files:
             is the SHOP2 license
 
 ``state-utils.lisp``
-            Additional source code for SHOP2.  A first step in
-	    decomposing SHOP2 into mutliple files.
+            Additional source code for SHOP2.  A first step in decomposing SHOP2 into mutliple files.
 
 ``shop2-<foo>.pdf``   The SHOP2 documentation (in Adobe Acrobat format)
 
@@ -54,7 +53,6 @@ This distribution contains the following files:
                 form that both loads and runs faster.  It uses a
                 function called "compile-file", which is available
                 in Allegro Lisp 6.0.
-
 		This file is largely obsolete now.  You should
                 probably be using ASDF to laod the system instead.
 
@@ -92,7 +90,6 @@ This distribution contains the following files:
                 competition (at AIPS-2000).  This directory contains the
                 solution validator provided in the third International
                 Planning Competition at AIPS-2002.
-
 		[This directory should probably have been placed in the
                 examples.]
 
