@@ -84,8 +84,12 @@ See documentation files (e.g., README.txt) in the example directories for more i
 		[This directory should probably have been placed in the
                 examples.]
 
+## Git Fork
 
- 
+This git fork was created from the SHOP2 SourceForce CVS repository using the following command:
 
-
-
+```bash
+$ git cvsimport -v \
+    -d:pserver:anonymous@shop.cvs.sourceforge.net:/cvsroot/shop \
+    -C . shop2
+```
