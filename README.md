@@ -5,6 +5,9 @@ Welcome to SHOP2!
 #### Contents
 
 * [About](#about-)
+* [Installation](#installation-)
+* [Usage](#usage-)
+* [Papers](#papers-)
 * [Files](#files-)
 * [Future Plans](#future-plans-)
 * [Reporting Issues](#reporting-issues-)
@@ -20,6 +23,34 @@ system based on Hierarchical Task Network (HTN) planning. In the 2002
 International Planning Competition, SHOP2 received one of the top four awards,
 one of the two awards for distinguished performance.
 
+
+## Installation [&#x219F;](#contents)
+
+To install and load, QuickLisp is used. If you don't have QuickLisp installed,
+you can do so with the following ``make`` target:
+
+```
+$ make quicklisp
+```
+
+This will help you get QuickLisp downloaded and installed for your Lisp, if you
+haven't done so already. It will also set up the local QuickLisp ``shop2``
+directory for you.
+
+If you already have QuickLisp installed, you can set up the local directory
+with the following:
+
+```
+make install
+```
+
+## Usage [&#x219F;](#contents)
+
+To begin, start SBCL (e.g.), and use QuickLisp to load ``shop2``:
+
+```cl
+* (ql:quickload "shop2")
+```
 
 ## Papers [&#x219F;](#contents)
 
