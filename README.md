@@ -73,6 +73,25 @@ MPL/GPL/LGPL triple license.  For details, see the software source file.
 *
 ```
 
+To load an example:
+
+```cl
+* (load "examples/toy/basic-example.lisp")
+```
+```
+Defining domain ...
+Defining problem PROBLEM1 ...
+---------------------------------------------------------------------------
+Problem PROBLEM1 with :WHICH = :FIRST, :VERBOSE = :PLANS
+Totals: Plans Mincost Maxcost Expansions Inferences  CPU time  Real time
+           1     2.0     2.0          4          2     0.000      0.000
+Plans:
+(((!DROP BANJO) (!PICKUP KIWI)))
+
+T
+*
+```
+
 
 ## Papers [&#x219F;](#contents)
 
