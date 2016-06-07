@@ -14,6 +14,7 @@ Welcome to SHOP2!
 * [History](#history-)
   * [Changes in Shop2 1.3](#changes-in-shop2-13-)
   * [Git Fork](#git-fork-)
+  * [Newer Sources](#newer-sources-)
 * [License](#license-)
 
 
@@ -205,13 +206,22 @@ good first test in loading SHOP2 is to do the following:
 
 ### Git Fork [&#x219F;](#contents)
 
-This git fork was created from the SHOP2 SourceForce CVS repository using the following command:
+This git fork was created from the SHOP2 SourceForce CVS repository using the
+following command:
 
 ```bash
 $ git cvsimport -v \
     -d:pserver:anonymous@shop.cvs.sourceforge.net:/cvsroot/shop \
     -C . shop2
 ```
+
+### Newer Sources [&#x219F;](#contents)
+Note, however, that the CVS repository is old and no longer maintained.
+Subsequent resleases have been made (up to version 2.9.0) from a private repo.
+If we can bring the commit history from the private repos over, we will do so
+-- failing that, we'll copy the code from the latest tarball into this fork and
+use that.
+
 
 ## License
 
