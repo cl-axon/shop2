@@ -15,7 +15,10 @@ Welcome to SHOP2!
 
 ## About [&#x219F;](#contents)
 
-TBD
+SHOP2, Simple Hierarchical Ordered Planner 2 is a domain-independent planning
+system based on Hierarchical Task Network (HTN) planning. In the 2002
+International Planning Competition, SHOP2 received one of the top four awards,
+one of the two awards for distinguished performance.
 
 
 ## Papers [&#x219F;](#contents)
