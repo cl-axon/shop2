@@ -24,7 +24,7 @@ system based on Hierarchical Task Network (HTN) planning. In the 2002
 International Planning Competition, SHOP2 received one of the top four awards,
 one of the two awards for distinguished performance.
 
-For more information, see the [papers]#(papers-) section below and the
+For more information, see the [papers](#papers-) section below and the
 [UMD SHOP site](https://www.cs.umd.edu/projects/shop/description.html).
 
 
