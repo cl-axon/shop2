@@ -643,7 +643,7 @@ and returns a thunk that will deliver the tasks one by one.")
        (when (member :states *shop-trace*)
    (format *shop-trace-stream* "~%     state ~s" (state-atoms state))))))
 
-(defconstant SHOP-TRACE-ITEMS
+(defvar SHOP-TRACE-ITEMS
   (list :methods :axioms :operators :tasks :goals :effects :protections
   :states :plans)
   "Acceptable arguments for SHOP-TRACE (and SHOP-UNTRACE).")
