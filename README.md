@@ -176,6 +176,7 @@ $ git cvsimport -v \
 ## License
 
 Copyright © 2002  University of Maryland.
+
 Robert Goldman's modifications Copyright © 2004,2005 SIFT, LLC.
 
 This software is distributed under an MPL/GPL/LGPL triple license.  For
