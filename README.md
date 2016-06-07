@@ -14,6 +14,7 @@ Welcome to SHOP2!
 * [History](#history-)
   * [Changes in Shop2 1.3](#changes-in-shop2-13-)
   * [Git Fork](#git-fork-)
+* [License](#license-)
 
 
 ## About [&#x219F;](#contents)
@@ -171,3 +172,15 @@ $ git cvsimport -v \
     -d:pserver:anonymous@shop.cvs.sourceforge.net:/cvsroot/shop \
     -C . shop2
 ```
+
+## License
+
+Copyright © 2002  University of Maryland.
+Robert Goldman's modifications Copyright © 2004,2005 SIFT, LLC.
+
+This software is distributed under an MPL/GPL/LGPL triple license.  For
+details, see the software source file.
+
+This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
+KIND, either express or implied.
+
