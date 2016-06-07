@@ -40,37 +40,38 @@ This distribution contains the following files:
 
 ##### Lisp
 
-* ``shop2.lisp``  The SHOP2 program; at the top of the program file
-                  is the SHOP2 license
+* ``shop2.lisp``  - The SHOP2 program; at the top of the program file
+                    is the SHOP2 license
 
-* ``state-utils.lisp`` Additional source code for SHOP2.  A first step in decomposing SHOP2 into mutliple files.
+* ``shop2.asd`` - ASDF system definition for SHOP2 system.  This is now
+                  the preferred means of loading shop2. Older methods
+                  have been moved into the ``old`` directory.
 
-* ``install.lisp`` This script compiles shop2.lisp into a
-                   form that both loads and runs faster.  It uses a
-                   function called "compile-file", which is available
-                   in Allegro Lisp 6.0.
-                   This file is largely obsolete now.  You should
-                   probably be using ASDF to laod the system instead.
+* ``state-utils.lisp`` - Additional source code for SHOP2.  A first step in
+                         decomposing SHOP2 into mutliple files.
 
-* ``shop2.asd``   ASDF system definition for SHOP2 system.  This is now
-                  the preferred means of loading shop2.  Other methods
-                  will soon be deleted unless someone else is interested
-                  in maintaining them.
+* ``old/install.lisp`` - This script compiles shop2.lisp into a
+                         form that both loads and runs faster.  It uses a
+                         function called "compile-file", which is available
+                         in Allegro Lisp 6.0.
+                         This file is largely obsolete now.  You should
+                         probably be using ASDF to laod the system instead.
 
-* ``shop2.system`` MK-DEFSYSTEM system definition for SHOP2.  This
-                   definition is less obsolete than INSTALL.LISP, but
-                   is also falling into bit rot and will no longer be
-                   maintained unless someone volunteers.
+* ``old/shop2.system`` - MK-DEFSYSTEM system definition for SHOP2.  This
+                         definition is less obsolete than INSTALL.LISP, but
+                         is also falling into bit rot and will no longer be
+                         maintained unless someone volunteers.
 
 ##### Java
 
-* ``java/ji4shop2/``   The Java interface for SHOP2.
+* ``java/ji4shop2/`` -  The Java interface for SHOP2.
+
 
 ##### ``docs``
 
-* ``shop2-<foo>.pdf``  The SHOP2 documentation (in Adobe Acrobat format)
+* ``shop2-<foo>.pdf`` -  The SHOP2 documentation (in Adobe Acrobat format)
 
-* ``shop2-<foo>.doc``  The SHOP2 documentation (in MS Word format)
+* ``shop2-<foo>.doc``  - The SHOP2 documentation (in MS Word format)
 
 ##### ``examples``
 
