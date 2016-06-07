@@ -38,7 +38,7 @@ one of the two awards for distinguished performance.
 
 This distribution contains the following files:
 
-#### Lisp
+##### Lisp
 
 * ``shop2.lisp``  The SHOP2 program; at the top of the program file
                   is the SHOP2 license
@@ -62,17 +62,17 @@ This distribution contains the following files:
                    is also falling into bit rot and will no longer be
                    maintained unless someone volunteers.
 
-#### Java
+##### Java
 
 * ``java/ji4shop2/``   The Java interface for SHOP2.
 
-#### ``docs``
+##### ``docs``
 
 * ``shop2-<foo>.pdf``  The SHOP2 documentation (in Adobe Acrobat format)
 
 * ``shop2-<foo>.doc``  The SHOP2 documentation (in MS Word format)
 
-#### ``examples``
+##### ``examples``
 
   * ``depots/``    The Depots domain from the third international planning competition (at AIPS-2002)
   * ``toy/``       Some very simple toy examples
