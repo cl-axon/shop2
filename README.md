@@ -2,11 +2,23 @@
 
 Welcome to SHOP2!
 
-## About
+#### Contents
+
+* [About](#about-)
+* [Files](#files-)
+* [Future Plans](#future-plans-)
+* [Reporting Issues](#reporting-issues-)
+* [History](#history-)
+  * [Changes in Shop2 1.3](#changes-in-shop2-1-3-)
+  * [Git Fork](#git-fork-)
+
+
+## About [&#x219F;](#contents)
 
 TBD
 
-## Files
+
+## Files [&#x219F;](#contents)
 
 This distribution contains the following files:
 
@@ -54,7 +66,7 @@ See documentation files (e.g., README.txt) in the example directories for more i
                   [This directory should probably have been placed in the examples.]
 
 
-## Future Plans
+## Future Plans [&#x219F;](#contents)
 
 This is a release candidate for SHOP2 (lisp version), version 1.3.
 This is primarily a bugfix release to follow on to SHOP2 1.2.  We
@@ -65,7 +77,7 @@ object-oriented extensions to SHOP2 and integrating SHOP2 into larger
 applications.
 
 
-## Reporting Issues
+## Reporting Issues [&#x219F;](#contents)
 
 We would be particularly interested in getting bug reports (or, better
 yet, patches!) from people who have tried to use SHOP2 with Lisps
@@ -74,9 +86,10 @@ would also be interested in hearing from people who have run the
 regression test suite.
 
 
-## History
+## History [&#x219F;](#contents)
 
-### Changes in SHOP2 1.3
+
+### Changes in SHOP2 1.3 [&#x219F;](#contents)
 
 There are two substantial changes from SHOP2 1.2 to 1.3:
 
@@ -94,7 +107,8 @@ good first test in loading SHOP2 is to do the following:
 
 1. There is now an extensive regression test suite for SHOP2.  To run the regression test suite, you may type: ``(asdf:oos 'asdf:test-op :shop2)`` **WARNING**:  this may take a couple of days to finish!  This runs all the domain descriptions distributed with SHOP2, and checks the results against saved plans.
 
-### Git Fork
+
+### Git Fork [&#x219F;](#contents)
 
 This git fork was created from the SHOP2 SourceForce CVS repository using the following command:
 
