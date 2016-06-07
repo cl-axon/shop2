@@ -45,7 +45,7 @@ If you already have QuickLisp installed, you can set up the local directory
 with the following:
 
 ```
-make install
+$ make install
 ```
 
 ## Usage [&#x219F;](#contents)
