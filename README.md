@@ -55,6 +55,24 @@ To begin, start SBCL (e.g.), and use QuickLisp to load ``shop2``:
 ```cl
 * (ql:quickload "shop2")
 ```
+```
+To load "shop2":
+  Load 1 ASDF system:
+    shop2
+; Loading "shop2"
+.............................
+
+SHOP2 version 1.3 alpha with SIFT mods (May 26, 2005)
+Copyright (C) 2002  University of Maryland.
+Robert Goldman's modifications Copyright (C) 2004,2005 SIFT, LLC.
+This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
+KIND, either express or implied.  This software is distributed under an
+MPL/GPL/LGPL triple license.  For details, see the software source file.
+
+("shop2")
+*
+```
+
 
 ## Papers [&#x219F;](#contents)
 
@@ -62,7 +80,7 @@ To begin, start SBCL (e.g.), and use QuickLisp to load ``shop2``:
 * 2003 - [SHOP2: An HTN Planning System](http://www.cs.umd.edu/~nau/papers/nau2003shop2.pdf) - Describes features of SHOP2 that helped it excel in the 2002 International Planning Competition
 * 2003 - [Automating DAML-S web services composition using SHOP2](http://www.cs.umd.edu/~nau/papers/wu2003automating.pdf) - Describes the use of SHOP2 to execute DAML-S web-service descriptions
 * 2004 - [Forward-chaining planning in nondeterministic domains](http://www.cs.umd.edu/~nau/papers/kuter2004forward-chaining.pdf) - Describes how to adapt SHOP2 and several other planners to work in nondeterministic planning domains
-* 2004 - [Applications of SHOP and SHOP2](http://www.cs.umd.edu/~nau/papers/nau2004applications.pdf) - Describes some of the applications for which people have used SHOP and SHOP2 
+* 2004 - [Applications of SHOP and SHOP2](http://www.cs.umd.edu/~nau/papers/nau2004applications.pdf) - Describes some of the applications for which people have used SHOP and SHOP2
 * 2005 - [A hierarchical task-network planner based on symbolic model checking](http://www.cs.umd.edu/~nau/papers/kuter2005hierarchical.pdf) - Further work on adapting SHOP2 to work in nondeterministic problem domains
 * 2005 - [Using domain-configurable search control for probabilistic planning](http://www.cs.umd.edu/~nau/papers/kuter2005using.pdf) - Describes how to adapt SHOP2 and several other planners to work in probabilistic planning domains such as MDPs
 * 2005 - [Information gathering during planning for web service composition](http://www.cs.umd.edu/~nau/papers/kuter2005information.pdf) - Extension of SHOP2 to gather information from the web in order to do web-service composition
