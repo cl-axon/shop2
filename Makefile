@@ -18,6 +18,8 @@ quicklisp.lisp:
 quicklisp.lisp.asc:
 	@curl -O https://beta.quicklisp.org/quicklisp.lisp.asc
 
+install: $(LOCAL_INSTALL)
+
 $(LOCAL_INSTALL): $(QL_DIR) $(QL_LOCAL_DIR)
 	@ln -s `pwd` $(LOCAL_INSTALL)
 	@echo
@@ -35,4 +37,4 @@ clean-quicklisp:
 
 clean: clean-quicklisp
 
-.PHONEY: quicklisp
+.PHONY: quicklisp install
